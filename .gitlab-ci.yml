@@ -1,0 +1,19 @@
+image: node:12
+
+cache:
+  paths:
+    - node_modules/
+
+script:
+  stage: build
+  script:
+    - npm install
+    - npm run build
+
+pages:
+  stage: deploy
+  artifacts:
+    paths:
+      - public
+  script:
+    - mv build public
