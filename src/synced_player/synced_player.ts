@@ -71,6 +71,7 @@ export class SyncedPlayer extends Events {
             host: config.peerServer,
             path: "/",
             port: config.signalingPort,
+            secure: false,
             debug: 4,
             config: {'iceServers': [
                 { url: 'stun:stun.l.google.com:19302' },
