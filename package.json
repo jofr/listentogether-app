@@ -1,7 +1,9 @@
 {
   "scripts": {
     "dev": "parcel watch src/index.html --no-hmr",
-    "build": "mkdir -p dist && cp res/silence.mp3 dist/ && parcel build src/index.html && cap sync"
+    "prebuild": "mkdir -p dist && cp res/silence.mp3 dist",
+    "build": "parcel build src/index.html",
+    "postbuild": "cap sync"
   },
   "devDependencies": {
     "@capacitor/cli": "^3.6.0",
