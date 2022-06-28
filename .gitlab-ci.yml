@@ -9,6 +9,11 @@ script:
   script:
     - npm install
     - npm run build
+  artifacts:
+    paths:
+      - dist
+    untracked: false
+    expire_in: 30 days
   when: manual
 
 pages:
@@ -17,5 +22,5 @@ pages:
     paths:
       - public
   script:
-    - mv build public
+    - mv dist public
   when: manual
