@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ListenTogether</string>
+    <string name="title_activity_main">ListenTogether</string>
+    <string name="package_name">io.gitlab.listentogether</string>
+    <string name="custom_url_scheme">io.gitlab.listentogether</string>
+</resources>
