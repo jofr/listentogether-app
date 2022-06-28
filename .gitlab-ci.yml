@@ -1,10 +1,9 @@
-image: node:12
-
 cache:
   paths:
     - node_modules/
 
 script:
+  image: node:12
   stage: build
   script:
     - npm install
@@ -17,6 +16,7 @@ script:
   when: manual
 
 pages:
+  image: busybox
   stage: deploy
   artifacts:
     paths:
