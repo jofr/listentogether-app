@@ -9,6 +9,7 @@ script:
   script:
     - npm install
     - npm run build
+  when: manual
 
 pages:
   stage: deploy
@@ -17,3 +18,4 @@ pages:
       - public
   script:
     - mv build public
+  when: manual
