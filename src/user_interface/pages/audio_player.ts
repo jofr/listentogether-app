@@ -212,7 +212,7 @@ export class PlayerTimeline extends LitElement {
         const disabled = !player || (player instanceof SyncedPlayerListener) || !player.currentAudio;
         const noAudio = !player || !player.currentAudio;
         const duration = player?.currentAudio ? player.currentAudio.duration : 1.0;
-        const currentTime = state ? state.playback.currentTime : 0.0;
+        const currentTime = player ? player.currentTime : 0.0;
         return html`
             <mwc-slider ?disabled=${disabled} @change=${(event: any) => player.seek(event.detail.value)} value="${noAudio ? 0 : currentTime}" min="0" max="${duration}"></mwc-slider>
             <div class="time">

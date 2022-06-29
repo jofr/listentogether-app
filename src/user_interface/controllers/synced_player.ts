@@ -36,6 +36,7 @@ export class SyncedPlayerController implements ReactiveController {
             for (const event of this._subscribedEvents) {
                 this._player.on(event, this._subscribedEventsHandler);
             }
+            this._host.requestUpdate();
         }
     }
 

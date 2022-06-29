@@ -1,7 +1,7 @@
 import { Peer } from "peerjs";
 
-import { AudioInfo } from "../util/audio";
 import { Events } from "../util/events";
+import { AudioInfo } from "../util/audio";
 
 import config from "../../config.json";
 
@@ -11,9 +11,9 @@ export type ListenerInfo = {
 }
 
 export type PlaybackState = {
-    referenceTime: number,
     currentAudio: string | null,
-    currentTime: number,
+    referenceTime: number,
+    audioTime: number,
     paused: boolean
 }
 
@@ -24,18 +24,17 @@ export type PlayerState = {
 }
 
 export class SyncedPlayer extends Events {
-    protected _audioElement: HTMLAudioElement;
     protected _state: PlayerState = {
         playlist: [],
         playback: {
-            referenceTime: 0,
             currentAudio: null,
-            currentTime: 0,
+            referenceTime: 0,
+            audioTime: 0,
             paused: true
         },
         listeners: []
     }
-
+    protected _audioElement: HTMLAudioElement;
     protected _peer: Peer;
 
     constructor() {
@@ -48,13 +47,8 @@ export class SyncedPlayer extends Events {
     private createAudioElement() {
         this._audioElement = document.createElement("audio");
         this._audioElement.src = `${window.location.origin}${window.location.pathname}/silence.mp3`;
-        document.body.appendChild(this._audioElement);
 
-        this._audioElement.addEventListener("timeupdate", () => {
-            this._state.playback.referenceTime = Date.now();
-            this._state.playback.currentTime = this._audioElement.currentTime;
-            this.emit("timeupdate")
-        });
+        this._audioElement.addEventListener("timeupdate", () => this.emit("timeupdate"));
         this._audioElement.addEventListener("pause", () => this.emit("pause"));
         this._audioElement.addEventListener("play", () => this.emit("play"));
         this._audioElement.addEventListener("durationchange", () => {
@@ -72,7 +66,7 @@ export class SyncedPlayer extends Events {
             path: "/",
             port: config.signalingPort,
             secure: true,
-            debug: 4,
+            debug: 0,
             config: {'iceServers': [
                 { url: 'stun:stun.l.google.com:19302' },
                 { url: `turn:${config.peerServer}:${config.turnPort}`, username: 'foo', credential: 'bar' }
@@ -113,29 +107,28 @@ export class SyncedPlayer extends Events {
     }
 
     public seek(time: number) {
+        this._state.playback.referenceTime = Date.now();
+        this._state.playback.audioTime = time;
+
         this._audioElement.currentTime = time;
     }
 
     public replay() {
-        this._audioElement.currentTime -= 30.0;
+        this.seek(this._audioElement.currentTime - 30.0);
     }
 
     public forward() {
-        this._audioElement.currentTime += 30.0;
+        this.seek(this._audioElement.currentTime + 30.0);
     }
 
     public skipPrevious() {
         const index = this._state.playlist.indexOf(this.currentAudio);
-        if ((index - 1) >= 0) {
-            this.playAudio(this._state.playlist[index - 1]);
-        }
+        this.playAudio(index - 1);
     }
 
     public skipNext() {
         const index = this._state.playlist.indexOf(this.currentAudio);
-        if (this._state.playlist.length > (index + 1)) {
-            this.playAudio(this._state.playlist[index + 1].url);
-        }
+        this.playAudio(index + 1);
     }
 
     public moveAudio(url: string, deltaIndex: number) {
@@ -144,7 +137,6 @@ export class SyncedPlayer extends Events {
         if (index !== -1) {
             this._state.playlist.splice(index, 1);
             this._state.playlist.splice(index + deltaIndex, 0, audio);
-
             this.emit("playlistchange");
         }
     }
@@ -153,24 +145,29 @@ export class SyncedPlayer extends Events {
         let audioInfo: AudioInfo | null = null;
 
         if (typeof(audio) == "number") {
-            audioInfo = this._state.playlist[audio];
+            if (0 <= audio && audio < this._state.playlist.length) {
+                audioInfo = this._state.playlist[audio];
+            }
         } else if (typeof(audio) == "string") {
             const index = this._state.playlist.indexOf(this._state.playlist.find((a: AudioInfo) => a.url == audio));
-            audioInfo = this._state.playlist[index];
+            if (index !== -1) {
+                audioInfo = this._state.playlist[index];
+            }
         } else {
             if (this._state.playlist.includes(audio)) {
                 audioInfo = audio;
             }
         }
 
-        if (audioInfo) {
+        if (audioInfo !== null) {
             this._state.playback.currentAudio = audioInfo.url;
-            this._audioElement.src = audioInfo.url;
+            this._state.playback.referenceTime = Date.now();
+            this._state.playback.audioTime = 0.0;
 
+            this._audioElement.src = audioInfo.url;
             if (!this._state.playback.paused) {
                 this._audioElement.play().then(() => { }).catch((error) => console.error(error));
             }
-
             this.emit("audiochange");
         }
     }
@@ -181,6 +178,10 @@ export class SyncedPlayer extends Events {
 
     get currentAudio(): AudioInfo | null {
         return this._state.playlist.find((audio: AudioInfo) => audio.url == this._state.playback.currentAudio) || null;
+    }
+
+    get currentTime(): number {
+        return this._audioElement.currentTime;
     }
 
     get listeners(): ListenerInfo[] {

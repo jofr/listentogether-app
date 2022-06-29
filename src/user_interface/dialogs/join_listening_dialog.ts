@@ -7,7 +7,7 @@ import "@material/mwc-list/mwc-check-list-item";
 import "@material/mwc-circular-progress-four-color";
 
 import { ModalDialog } from "./modal_dialog";
-import { SyncedPlayerListener } from "../../synced_player/synced_player_listener";
+import { SyncedPlayerListener, ConnectionState } from "../../synced_player/synced_player_listener";
 
 declare global {
     interface HTMLElementTagNameMap {
@@ -39,9 +39,9 @@ export class JoinListeningDialog extends ModalDialog {
         return this._player;
     }
 
-    private _join() {
+    private async _join() {
         if (this._player) {
-            this._player.silentAudioActivation();
+            await this._player.silentAudioActivation();
             window.syncedPlayer = this._player;
             this._player = null;
         }
@@ -89,9 +89,9 @@ export class JoinListeningDialog extends ModalDialog {
     }
 
     renderContent() {
-        if (!this._player || this._player.connectionStatus == "connecting") {
+        if (!this._player || this._player.connectionState === ConnectionState.Connecting) {
             return this.renderConnecting();
-        } else if (this._player.connectionStatus == "connected") {
+        } else if (this._player.connectionState === ConnectionState.Connected) {
             return this.renderConnected();
         } else {
             return this.renderError();
@@ -99,7 +99,7 @@ export class JoinListeningDialog extends ModalDialog {
     }
 
     renderActions() {
-        if (this._player?.connectionStatus == "error") {
+        if (this._player?.connectionState === ConnectionState.Error) {
             return html`
                 <mwc-button label="Try again!" @click=${() => window.location.reload()}></mwc-button>
                 <mwc-button unelevated label="Start new!" @click=${this._dontJoin}></mwc-button>
@@ -107,7 +107,7 @@ export class JoinListeningDialog extends ModalDialog {
         } else {
             return html`
                 <mwc-button label="Don't join" @click=${this._dontJoin}></mwc-button>
-                <mwc-button ?disabled=${!this._player || this._player.connectionStatus != "connected"} unelevated icon="group_add" label="Join listening!" @click=${this._join}></mwc-button>
+                <mwc-button ?disabled=${!this._player || this._player.connectionState !== ConnectionState.Connected} unelevated icon="group_add" label="Join listening!" @click=${this._join}></mwc-button>
             `
         }
     }

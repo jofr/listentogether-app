@@ -89,27 +89,12 @@ export class SyncedPlayerHost extends SyncedPlayer {
     }
 
     public togglePlay() {
-        const  paused = this._state.playback.paused;
-
         super.togglePlay();
-
-        if (paused !== this._state.playback.paused) {
-            this.sendPlaybackSyncToListeners();
-        }
+        this.sendPlaybackSyncToListeners();
     }
 
     public seek(time: number) {
         super.seek(time);
-        this.sendPlaybackSyncToListeners();
-    }
-
-    public replay() {
-        super.replay();
-        this.sendPlaybackSyncToListeners();
-    }
-
-    public forward() {
-        super.forward();
         this.sendPlaybackSyncToListeners();
     }
 
