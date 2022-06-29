@@ -19,6 +19,8 @@ declare global {
 
 window.shareTarget = registerPlugin<ShareTargetPlugin>('ShareTarget');
 
+window.addEventListener("hashchange", () => window.location.reload());
+
 /* Set up global synced player property to dispatch event on change (relevant for user interface elements) */
 let _syncedPlayer: SyncedPlayerHost | SyncedPlayerListener | null = null;
 
