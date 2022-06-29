@@ -1,5 +1,5 @@
 {
-    "peerServer": "130.162.227.114",
+    "peerServer": "listentogether.nsupdate.info",
     "signalingPort": 5000,
     "turnPort": 3478
 }
