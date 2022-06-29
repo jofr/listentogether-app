@@ -99,6 +99,9 @@ export class SyncedPlayer extends Events {
 
     public togglePlay() {
         this._state.playback.paused = !this._state.playback.paused;
+        this._state.playback.referenceTime = Date.now();
+        this._state.playback.audioTime = this._audioElement.currentTime;
+        
         if (this._state.playback.paused && !this._audioElement.paused) {
             this._audioElement.pause();
         } else if (!this._state.playback.paused && this._audioElement.paused) {

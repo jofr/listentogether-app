@@ -61,9 +61,13 @@ export class SyncedPlayerListener extends SyncedPlayer {
                 this.emit("audiochange");
             }
 
-            const now = Date.now();
-            const difference = (now - data.playback.referenceTime) / 1000.0;
-            this._audioElement.currentTime = data.playback.audioTime + difference;
+            if (data.playback.paused) {
+                this._audioElement.currentTime = data.playback.audioTime;
+            } else {
+                const now = Date.now();
+                const difference = (now - data.playback.referenceTime) / 1000.0;
+                this._audioElement.currentTime = data.playback.audioTime + difference;
+            }            
 
             if (this._audioActivated) {
                 if (data.playback.paused && !this._audioElement.paused) {
