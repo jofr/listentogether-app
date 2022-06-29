@@ -263,6 +263,9 @@ export class PlayerControls extends LitElement {
 
     private _playerController = new SyncedPlayerController(this, ["play", "pause", "audiochange", "playlistchange"]);
 
+    @state()
+    minified = false;
+
     render() {
         const player = this._playerController.player;
         const state = player?.state;
@@ -272,10 +275,10 @@ export class PlayerControls extends LitElement {
             <div id="controls-container">
                 <div id="controls">
                     <mwc-icon-button ?disabled=${disabled || currentAudioIndex === 0} @click=${() => player.skipPrevious()} icon="skip_previous"></mwc-icon-button>
-                    <mwc-icon-button ?disabled=${disabled} @click=${() => player.replay()} icon="replay_30" class="only-maxified"></mwc-icon-button>
+                    <mwc-icon-button ?disabled=${disabled || this.minified} @click=${() => player.replay()} icon="replay_30" class="only-maxified"></mwc-icon-button>
                     <mwc-icon-button ?disabled=${disabled} class="play" @click=${() => player.togglePlay()} icon="${!player || player.state.playback.paused ? "play_circle" : "pause_circle"}"></mwc-icon-button>
-                    <mwc-icon-button ?disabled=${disabled} @click=${() => player.forward()} icon="forward_30" class="only-maxified"></mwc-icon-button>
-                    <mwc-icon-button ?disabled=${disabled || currentAudioIndex === state.playlist.length - 1} @click=${() => player.skipNext()} icon="skip_next"></mwc-icon-button>
+                    <mwc-icon-button ?disabled=${disabled || this.minified} @click=${() => player.forward()} icon="forward_30" class="only-maxified"></mwc-icon-button>
+                    <mwc-icon-button ?disabled=${disabled || currentAudioIndex === state.playlist.length - 1} @click=${() => { console.log("foo"); player.skipNext() }} icon="skip_next"></mwc-icon-button>
                 </div>
             </div>
         `
@@ -352,6 +355,9 @@ export class SyncedListeners extends LitElement {
 
     private _playerController = new SyncedPlayerController(this, ["listenerschange"]);
 
+    @state()
+    minified = false;
+
     inviteListener() {
         Share.canShare().then((canShare) => {
             if (canShare.value === true) {
@@ -384,7 +390,7 @@ export class SyncedListeners extends LitElement {
                     </div>
                 </div>
             </div>
-            <mwc-icon-button unelevated icon="settings"></mwc-icon-button>
+            <mwc-icon-button ?disabled=${this.minified} unelevated icon="settings"></mwc-icon-button>
         `
     }
 }
@@ -624,8 +630,12 @@ export class AudioPlayer extends LitElement {
 
         if (scrollPercentage > 0.95) {
             this._controlsMinified = true;
+            (this.shadowRoot.querySelector("player-controls") as PlayerControls).minified = true;
+            (this.shadowRoot.querySelector("synced-listeners") as SyncedListeners).minified = true;
         } else {
             this._controlsMinified = false;
+            (this.shadowRoot.querySelector("player-controls") as PlayerControls).minified = false;
+            (this.shadowRoot.querySelector("synced-listeners") as SyncedListeners).minified = false;
         }
     }
 
