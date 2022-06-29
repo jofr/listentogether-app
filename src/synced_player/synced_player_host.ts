@@ -108,6 +108,11 @@ export class SyncedPlayerHost extends SyncedPlayer {
         this.sendPlaybackSyncToListeners();
     }
 
+    public moveAudio(url: string, deltaIndex: number) {
+        super.moveAudio(url, deltaIndex);
+        this.sendPlaylistSyncToListeners();
+    }
+
     public playAudio(audio: string | number | AudioInfo) {
         super.playAudio(audio);
         this.sendPlaybackSyncToListeners();

@@ -111,6 +111,10 @@ export class SyncedPlayerListener extends SyncedPlayer {
         console.log("Not allowed for listener");
     }
 
+    public moveAudio(url: string, deltaIndex: number) {
+        console.log("Not allowed for listener");
+    }
+
     get listeners(): ListenerInfo[] {
         const listeners = [{
             id: this._hostId,

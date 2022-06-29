@@ -496,18 +496,33 @@ export class EditablePlaylist extends LitElement {
     render() {
         const player = this._playerController.player;
         const audios = player?.state.playlist || [];
-        return html`
-            <mwc-list activatable @action=${this.selectAudio}>
-                ${repeat(audios, (audio) => audio.url, (audio) => html`
-                    <mwc-list-item ?activated=${audio.url == player.currentAudio.url} ?selected=${audio.url == player.currentAudio.url} twoline graphic="medium" hasMeta data-audio="${audio.url}">
-                        <span>${audio.title}</span>
-                        <span slot="secondary">${audio.album}</span>
-                        <img slot="graphic" src="${audio.cover?.data &&  audio.cover?.format ? URL.createObjectURL(new Blob([audio.cover.data], { type: audio.cover.format })) : nothing}" />
-                        <mwc-icon slot="meta" @touchstart=${(event: TouchEvent) => this.touchStart(event, audio.url)} @touchmove=${this.touchMove} @touchend=${this.touchEnd}>drag_indicator</mwc-icon>
-                    </mwc-list-item>
-                `)}
-            </mwc-list>
-        `;
+        const editable = (player instanceof SyncedPlayerHost);
+        if (editable) {
+            return html`
+                <mwc-list activatable @action=${this.selectAudio} @touchmove=${this.touchMove} @touchend=${this.touchEnd}>
+                    ${repeat(audios, (audio) => audio.url, (audio, index) => html`
+                        <mwc-list-item ?activated=${audio.url == player.currentAudio.url} ?selected=${audio.url == player.currentAudio.url} twoline graphic="medium" hasMeta data-url="${audio.url}">
+                            <span>${audio.title}</span>
+                            <span slot="secondary">${audio.album}</span>
+                            <img slot="graphic" src="${audio.cover?.data &&  audio.cover?.format ? URL.createObjectURL(new Blob([audio.cover.data], { type: audio.cover.format })) : nothing}" />
+                            <mwc-icon slot="meta" @touchstart=${(event: TouchEvent) => this.touchStart(event, audio.url)}>drag_indicator</mwc-icon>
+                        </mwc-list-item>
+                    `)}
+                </mwc-list>
+            `;
+        } else {
+            return html`
+                <mwc-list activatable>
+                    ${repeat(audios, (audio) => audio.url, (audio, index) => html`
+                        <mwc-list-item ?activated=${audio.url == player.currentAudio.url} ?selected=${audio.url == player.currentAudio.url} twoline graphic="medium" hasMeta data-url="${audio.url}">
+                            <span>${audio.title}</span>
+                            <span slot="secondary">${audio.album}</span>
+                            <img slot="graphic" src="${audio.cover?.data &&  audio.cover?.format ? URL.createObjectURL(new Blob([audio.cover.data], { type: audio.cover.format })) : nothing}" />
+                        </mwc-list-item>
+                    `)}
+                </mwc-list>
+            `;
+        }
     }
 }
 
