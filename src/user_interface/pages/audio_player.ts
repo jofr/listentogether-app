@@ -2,9 +2,11 @@ import { LitElement, html, css, TemplateResult, nothing } from "lit";
 import { customElement, property, query, state } from "lit/decorators";
 import {repeat} from "lit/directives/repeat.js";
 import { Share } from '@capacitor/share';
+import "@material/mwc-button";
 import "@material/mwc-ripple";
 import "@material/mwc-slider";
 import "@material/mwc-icon-button";
+import "@material/mwc-fab";
 
 import { PlayerState } from "../../synced_player/synced_player";
 import { SyncedPlayerHost } from "../../synced_player/synced_player_host";
@@ -390,7 +392,7 @@ export class SyncedListeners extends LitElement {
                     </div>
                 </div>
             </div>
-            <mwc-icon-button ?disabled=${this.minified} unelevated icon="settings"></mwc-icon-button>
+            <mwc-icon-button ?disabled=${this.minified} unelevated icon="settings" @click=${() => window.app.showDialog("share-settings-dialog")}></mwc-icon-button>
         `
     }
 }
@@ -594,6 +596,11 @@ export class AudioPlayer extends LitElement {
             box-shadow: 0px 11px 15px -7px rgb(0 0 0 / 20%), 0px 24px 38px 3px rgb(0 0 0 / 14%), 0px 9px 46px 8px rgb(0 0 0 / 12%);
         }
 
+        mwc-fab {
+            position: absolute;
+            left: calc(1.0rem - 4px);
+        }
+
         player-timeline {
             transform: translateY(calc(var(--minified-player) * var(--synced-listeners-height)));
         }
@@ -646,6 +653,7 @@ export class AudioPlayer extends LitElement {
                 ${this._playerController.player?.state?.playlist.length > 0 ? html`<editable-playlist></editable-playlist>` : nothing}
             </div>
             <div id="controls" class=${classMap({"minified": this._controlsMinified})}>
+                ${this._controlsMinified ? html`<mwc-fab mini icon="playlist_add" label="Add audio" @click=${() => { window.app.showDialog("add-audio-dialog") }}></mwc-fab>` : nothing}
                 <player-timeline></player-timeline>
                 <player-controls></player-controls>
                 <synced-listeners></synced-listeners>
