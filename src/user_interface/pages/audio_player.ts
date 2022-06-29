@@ -175,11 +175,6 @@ export class PlayerTimeline extends LitElement {
             z-index: 1;
         }
 
-        :host::before {
-            content: '';
-            
-        }
-
         mwc-slider {
             margin: 0px -24px;
         }
@@ -490,19 +485,21 @@ export class EditablePlaylist extends LitElement {
     }
 
     selectAudio(event: any) {
-        console.log("selectAudio")
         const player = this._playerController.player;
-        player.playAudio(event.detail.index);
+
+        const audioElements = Array.from(this.shadowRoot.querySelectorAll("mwc-list-item"));
+        const audioElement = audioElements[event.detail.index];
+
+        player.playAudio(audioElement.dataset.audio);
     }
 
     render() {
-        console.log("render")
         const player = this._playerController.player;
         const audios = player?.state.playlist || [];
         return html`
-            <mwc-list activatable @selected=${this.selectAudio}>
+            <mwc-list activatable @action=${this.selectAudio}>
                 ${repeat(audios, (audio) => audio.url, (audio) => html`
-                    <mwc-list-item ?activated=${audio.url == player.currentAudio.url} twoline graphic="medium" hasMeta>
+                    <mwc-list-item ?activated=${audio.url == player.currentAudio.url} ?selected=${audio.url == player.currentAudio.url} twoline graphic="medium" hasMeta data-audio="${audio.url}">
                         <span>${audio.title}</span>
                         <span slot="secondary">${audio.album}</span>
                         <img slot="graphic" src="${audio.cover?.data &&  audio.cover?.format ? URL.createObjectURL(new Blob([audio.cover.data], { type: audio.cover.format })) : nothing}" />
@@ -521,12 +518,14 @@ export class AudioPlayer extends LitElement {
             --cover-size: min(calc(100vw - 2.0rem), 55vh);
             --minified-player: 0.0;
             --maxified-player: 1.0;
+            --maxified-controls-height: 12.5rem;
+            --minified-controls-height: 7.5rem;
 
             display: flex;
             flex-direction: column;
             width: calc(var(--cover-size) + 2 * var(--padding));
             height: 100%;
-            padding: var(--padding) 0px;
+            padding: 0px;
             color: var(--mdc-theme-on-background);
         }
 
@@ -552,6 +551,28 @@ export class AudioPlayer extends LitElement {
             scroll-snap-align: start;
         }
 
+        #controls {
+            flex-shrink: 0;
+            height: var(--maxified-controls-height);
+            z-index: 1;
+        }
+
+        #controls::before {
+            content: '';
+            position: absolute;
+            left: 0px;
+            bottom: 0px;
+            width: 100%;
+            height: calc(var(--minified-controls-height) + var(--maxified-player) * calc(var(--maxified-controls-height) - var(--minified-controls-height)));
+            background: var(--mdc-theme-background);
+            transition: 0.4s box-shadow;
+        }
+
+        #controls.minified::before {
+            background: var(--mdc-theme-surface);
+            box-shadow: 0px 11px 15px -7px rgb(0 0 0 / 20%), 0px 24px 38px 3px rgb(0 0 0 / 14%), 0px 9px 46px 8px rgb(0 0 0 / 12%);
+        }
+
         player-timeline {
             transform: translateY(calc(var(--minified-player) * var(--synced-listeners-height)));
         }
@@ -567,14 +588,30 @@ export class AudioPlayer extends LitElement {
 
     private _playerController = new SyncedPlayerController(this, ["playlistchange"]);
 
-    contentScroll(): void {
-        const syncedListenersElement = this.shadowRoot.querySelector("synced-listeners") as HTMLElement;
-        this.style.setProperty("--synced-listeners-height", `${syncedListenersElement.offsetHeight}px`);
+    @state()
+    private _controlsMinified = false;
 
-        const contentElement = this.shadowRoot.querySelector("#content") as HTMLElement;
-        const scrollPercentage = Math.min(1.0, (contentElement.scrollTop / contentElement.offsetHeight));
+    @query("synced-listeners", true)
+    private _syncedListenersElement: HTMLElement;
+
+    @query("#content", true)
+    private _contentElement: HTMLElement;
+
+    @query("cover-and-information", true)
+    private _coverAndInformationElement: HTMLElement;
+
+    contentScroll(): void {
+        this.style.setProperty("--synced-listeners-height", `${this._syncedListenersElement.offsetHeight}px`);
+
+        const scrollPercentage = Math.min(1.0, (this._contentElement.scrollTop / this._coverAndInformationElement.offsetHeight));
         this.style.setProperty("--minified-player", `${scrollPercentage}`);
         this.style.setProperty("--maxified-player", `${-1 * (scrollPercentage - 1)}`);
+
+        if (scrollPercentage > 0.95) {
+            this._controlsMinified = true;
+        } else {
+            this._controlsMinified = false;
+        }
     }
 
     render() {
@@ -583,7 +620,7 @@ export class AudioPlayer extends LitElement {
                 <cover-and-information></cover-and-information>
                 ${this._playerController.player?.state?.playlist.length > 0 ? html`<editable-playlist></editable-playlist>` : nothing}
             </div>
-            <div id="controls">
+            <div id="controls" class=${classMap({"minified": this._controlsMinified})}>
                 <player-timeline></player-timeline>
                 <player-controls></player-controls>
                 <synced-listeners></synced-listeners>
