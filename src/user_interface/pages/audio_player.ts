@@ -209,14 +209,15 @@ export class PlayerTimeline extends LitElement {
     render() {
         const player = this._playerController.player;
         const state = player?.state;
-        const disabled = !player || !player.currentAudio;
+        const disabled = !player || (player instanceof SyncedPlayerListener) || !player.currentAudio;
+        const noAudio = !player || !player.currentAudio;
         const duration = player?.currentAudio ? player.currentAudio.duration : 1.0;
         const currentTime = state ? state.playback.currentTime : 0.0;
         return html`
-            <mwc-slider ?disabled=${disabled} @change=${(event: any) => player.seek(event.detail.value)} value="${disabled ? 0 : currentTime}" min="0" max="${duration}"></mwc-slider>
+            <mwc-slider ?disabled=${disabled} @change=${(event: any) => player.seek(event.detail.value)} value="${noAudio ? 0 : currentTime}" min="0" max="${duration}"></mwc-slider>
             <div class="time">
-                <span id="current">${disabled ? nothing : prettyTime(currentTime)}</span>
-                <span id="duration">${disabled ? nothing : prettyTime(duration)}</span>
+                <span id="current">${noAudio ? nothing : prettyTime(currentTime)}</span>
+                <span id="duration">${noAudio ? nothing : prettyTime(duration)}</span>
             </div>
         `
     }
@@ -270,7 +271,7 @@ export class PlayerControls extends LitElement {
     render() {
         const player = this._playerController.player;
         const state = player?.state;
-        const disabled = !player || !player.currentAudio;
+        const disabled = !player || (player instanceof SyncedPlayerListener) || !player.currentAudio;
         const currentAudioIndex = (state && player.currentAudio) ? state.playlist.indexOf(player.currentAudio) : -1;
         return html`
             <div id="controls-container">
