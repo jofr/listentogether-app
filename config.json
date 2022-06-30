@@ -1,5 +1,6 @@
 {
     "peerServer": "listentogether.nsupdate.info",
     "signalingPort": 5000,
+    "stunPort": 3478,
     "turnPort": 3478
 }

@@ -66,10 +66,10 @@ export class SyncedPlayer extends Events {
             path: "/",
             port: config.signalingPort,
             secure: true,
-            debug: 0,
+            debug: 5,
             config: {'iceServers': [
-                { url: 'stun:stun.l.google.com:19302' },
-                { url: `turn:${config.peerServer}:${config.turnPort}`, username: 'foo', credential: 'bar' }
+                { url: `stun:${config.peerServer}:${config.stunPort}` },
+                { url: `turn:${config.peerServer}:${config.turnPort}`, username: 'listentogether', credential: 'V6O3hlU2OgKne4Ua7Z6IjI8jX9jnEG4sk1jS168Q' }
             ]} 
         });
         this._peer.on("open", () => { this.peerSetup(); });
@@ -101,7 +101,7 @@ export class SyncedPlayer extends Events {
         this._state.playback.paused = !this._state.playback.paused;
         this._state.playback.referenceTime = Date.now();
         this._state.playback.audioTime = this._audioElement.currentTime;
-        
+
         if (this._state.playback.paused && !this._audioElement.paused) {
             this._audioElement.pause();
         } else if (!this._state.playback.paused && this._audioElement.paused) {
