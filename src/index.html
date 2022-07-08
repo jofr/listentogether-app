@@ -21,14 +21,30 @@
       }
 
       body {
-        --mdc-theme-primary: #4ed760;
-        --mdc-theme-on-primary: #ffffff;
-        --mdc-theme-secondary: #61dff2;
-        --mdc-theme-on-secondary: #ffffff;
-        --mdc-theme-surface: #ffffff;
-        --mdc-theme-on-surface: #000000;
-        --mdc-theme-background: #ffffff;
-        --mdc-theme-on-background: #000000;
+        --primary: #1a6c2b;
+        --on-primary: #ffffff;
+        --primary-container: #a8f6a8;
+        --on-primary-container: #001b01;
+        --secondary: #6051a8;
+        --on-secondary: #ffffff;
+        --secondary-container: #e7dfff;
+        --on-secondary-container: #140961;
+        --background: #fcfdf7;
+        --on-background: #131512;
+        --surface: #fcfdf7;
+        --on-surface: #131512;
+        --surface-variant: #dfe5da;
+        --on-surface-variant: #40473e;
+        --outline: #737a70;
+
+        --mdc-theme-primary: var(--primary);
+        --mdc-theme-on-primary: var(--on-primary);
+        --mdc-theme-secondary: var(--secondary);
+        --mdc-theme-on-secondary: var(--on-secondary);
+        --mdc-theme-surface: var(--surface);
+        --mdc-theme-on-surface: var(--on-surface);
+        --mdc-theme-background: var(--background);
+        --mdc-theme-on-background: var(--on-background);
         --padding: 1.0rem;
 
         margin: 0px;
@@ -37,14 +53,21 @@
       }
 
       body.dark-mode {
-        --mdc-theme-primary: #4ed760;
-        --mdc-theme-on-primary: #ffffff;
-        --mdc-theme-secondary: #61dff2;
-        --mdc-theme-on-secondary: #ffffff;
-        --mdc-theme-surface: #262630;
-        --mdc-theme-on-surface: #ffffff;
-        --mdc-theme-background: #1a1a1f;
-        --mdc-theme-on-background: #ffffff;
+        --primary: #8dd98f;
+        --on-primary: #003707;
+        --primary-container: #005214;
+        --on-primary-container: #a8f6a8;
+        --secondary: #ccbfff;
+        --on-secondary: #2e1b77;
+        --secondary-container: #47368e;
+        --on-secondary-container: #e7dfff;
+        --background: #131512;
+        --on-background: #e3e4de;
+        --surface: #131512;
+        --on-surface: #e3e4de;
+        --surface-variant: #40473e;
+        --on-surface-variant: #c4cabe;
+        --outline: #8e9489;
       }
     </style>
   </head>
