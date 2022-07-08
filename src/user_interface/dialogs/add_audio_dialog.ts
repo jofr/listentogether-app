@@ -7,8 +7,9 @@ import "@material/mwc-list/mwc-check-list-item";
 import "@material/mwc-circular-progress-four-color";
 
 import { ModalDialog } from "./modal_dialog";
-import { AudioInfo, extractAudios } from "../../audio_info/extract";
-import { extractURLs } from "../../util/util";
+import { AudioInfo } from "../../audio_info/audio_info";
+import { extractAudios } from "../../audio_info/extract";
+import { extractUrls } from "../../util/util";
 import { SessionController } from "../controllers/session";
 
 declare global {
@@ -45,7 +46,7 @@ export class AddAudioDialog extends ModalDialog {
     private sessionController = new SessionController(this);
 
     async setInput(input: string) {
-        if (extractURLs(input) !== null) {
+        if (extractUrls(input) !== null) {
             this.processing = true;
             this.possibleAudios = await extractAudios(input);
             this.processing = false;
