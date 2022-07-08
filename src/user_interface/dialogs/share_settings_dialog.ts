@@ -2,7 +2,7 @@ import { html, css } from "lit";
 import { customElement } from "lit/decorators";
 
 import { ModalDialog } from "./modal_dialog";
-import { SyncedPlayerController } from "../controllers/synced_player";
+import { SessionController } from "../controllers/session";
 
 declare global {
     interface HTMLElementTagNameMap {
@@ -18,7 +18,7 @@ export class ShareSettingsDialog extends ModalDialog {
         `
     ];
 
-    private _playerController = new SyncedPlayerController(this);
+    private sessionController = new SessionController(this);
 
     renderContent() {
         return html`   

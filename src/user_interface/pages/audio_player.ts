@@ -1,6 +1,8 @@
 import { LitElement, html, css, TemplateResult, nothing } from "lit";
-import { customElement, property, query, state } from "lit/decorators";
-import {repeat} from "lit/directives/repeat.js";
+import { customElement, query, state } from "lit/decorators";
+import { repeat } from "lit/directives/repeat.js";
+import { classMap } from "lit/directives/class-map";
+import { until } from 'lit/directives/until.js';
 import { Share } from '@capacitor/share';
 import "@material/mwc-button";
 import "@material/mwc-ripple";
@@ -8,16 +10,13 @@ import "@material/mwc-slider";
 import "@material/mwc-icon-button";
 import "@material/mwc-fab";
 
-import { PlayerState } from "../../synced_player/synced_player";
-import { SyncedPlayerHost } from "../../synced_player/synced_player_host";
-import { SyncedPlayerListener } from "../../synced_player/synced_player_listener";
-import "../dialogs/add_audio_dialog";
-import "../dialogs/modal_dialog";
-import { classMap } from "lit/directives/class-map";
-import { AddAudioDialog } from "../dialogs/add_audio_dialog";
+import { ListeningHost, ListeningListener } from "../../listening/peer";
+import { SessionController } from "../controllers/session";
 import { clamp, prettyTime } from "../../util/util";
-import { InviteListenerDialog } from "../dialogs/invite_listener_dialog";
-import { SyncedPlayerController } from "../controllers/synced_player";
+import { CoverInfo } from "../../audio_info/extract";
+
+const defaultCoverData = `<svg xmlns="http://www.w3.org/2000/svg" height="48" width="48"><path d="M19.65 42Q16.5 42 14.325 39.825Q12.15 37.65 12.15 34.5Q12.15 31.35 14.325 29.175Q16.5 27 19.65 27Q21.05 27 22.175 27.4Q23.3 27.8 24.15 28.5V6H35.85V12.75H27.15V34.5Q27.15 37.65 24.975 39.825Q22.8 42 19.65 42Z"/></svg>`;
+const defaultCoverObjectUrl = URL.createObjectURL(new Blob([defaultCoverData], { type: "image/svg+xml" }));
 
 @customElement("cover-and-information")
 export class CoverAndInformation extends LitElement {
@@ -104,26 +103,27 @@ export class CoverAndInformation extends LitElement {
         }
     `;
 
-    private _playerController = new SyncedPlayerController(this, ["audiochange"]);
+    private sessionController = new SessionController(this, { listen: ["audiochange"] });
     
     coverTemplate(): TemplateResult {
-        const player = this._playerController.player;
-        if (player?.currentAudio) {
-            const cover = player.currentAudio.cover;
-            const src = URL.createObjectURL(new Blob([cover.data], { type: cover.format }));
-            return html`<img id="cover" src="${src}" />`;
+        const session = this.sessionController.session;
+
+        if (session?.currentAudio) {
+            return html`<img id="cover" src="${until(window.audioInfoCache.getProperty(session.currentAudio.uri, "cover").then((cover: CoverInfo) => cover? cover.objectUrl : defaultCoverObjectUrl), defaultCoverObjectUrl)}" />`;
         } else {
             return html`<div class="add-audio" @click=${() => window.app.showDialog("add-audio-dialog")}>library_music</div>`;
         }
     }
 
     informationTemplate(): TemplateResult {
-        const player = this._playerController.player;
-        if (player?.currentAudio) {
+        const session = this.sessionController.session;
+
+        if (session?.currentAudio) {
+            const currentAudio = session.currentAudio;
             return html`
                 <div id="title-and-album">
-                    <h1>${player.currentAudio.title}</h1>
-                    <h2>${player.currentAudio.album}</h2>
+                    <h1>${until(window.audioInfoCache.getProperty(currentAudio.uri, "title"), html`<loading-placeholder characters="10"></loading-placeholder>`)}</h1>
+                    <h2>${until(window.audioInfoCache.getProperty(currentAudio.uri, "album"), html`<loading-placeholder characters="10"></loading-placeholder>`)}</h2>
                 </div>
                 <div id="more-information">
                     <mwc-icon-button icon="info"></mwc-icon-button>
@@ -201,17 +201,16 @@ export class PlayerTimeline extends LitElement {
         }
     `;
 
-    private _playerController = new SyncedPlayerController(this, ["timeupdate", "durationchange"]);
+    private sessionController = new SessionController(this, { listen: ["timeupdate", "durationchange"] });
 
     render() {
-        const player = this._playerController.player;
-        const state = player?.state;
-        const disabled = !player || (player instanceof SyncedPlayerListener) || !player.currentAudio;
-        const noAudio = !player || !player.currentAudio;
-        const duration = player?.currentAudio ? player.currentAudio.duration : 1.0;
-        const currentTime = player ? player.currentTime : 0.0;
+        const session = this.sessionController.session;
+        const disabled = !session || (session.peer instanceof ListeningListener) || !session.currentAudio;
+        const noAudio = !session || !session.currentAudio;
+        const duration = session?.currentAudio ? session.player.duration : 1.0;
+        const currentTime = session ? session.player.currentTime : 0.0;
         return html`
-            <mwc-slider ?disabled=${disabled} @change=${(event: any) => player.seek(event.detail.value)} value="${noAudio ? 0 : currentTime}" min="0" max="${duration}"></mwc-slider>
+            <mwc-slider ?disabled=${disabled} @change=${(event: any) => session.seek(event.detail.value)} value="${noAudio ? 0 : currentTime}" min="0" max="${duration}"></mwc-slider>
             <div class="time">
                 <span id="current">${noAudio ? nothing : prettyTime(currentTime)}</span>
                 <span id="duration">${noAudio ? nothing : prettyTime(duration)}</span>
@@ -263,24 +262,23 @@ export class PlayerControls extends LitElement {
         }
     `;
 
-    private _playerController = new SyncedPlayerController(this, ["play", "pause", "audiochange", "playlistchange"]);
+    private sessionController = new SessionController(this, { subscribe: ["playlist"], listen: ["play", "pause", "audiochange"] });
 
     @state()
     minified = false;
 
     render() {
-        const player = this._playerController.player;
-        const state = player?.state;
-        const disabled = !player || (player instanceof SyncedPlayerListener) || !player.currentAudio;
-        const currentAudioIndex = (state && player.currentAudio) ? state.playlist.indexOf(player.currentAudio) : -1;
+        const session = this.sessionController.session;
+        const disabled = !session || (session.peer instanceof ListeningListener) || !session.currentAudio;
+        const currentAudioIndex = (session && session.currentAudio) ? session.playlist.indexOf(session.currentAudio) : -1;
         return html`
             <div id="controls-container">
                 <div id="controls">
-                    <mwc-icon-button ?disabled=${disabled || currentAudioIndex === 0} @click=${() => player.skipPrevious()} icon="skip_previous"></mwc-icon-button>
-                    <mwc-icon-button ?disabled=${disabled || this.minified} @click=${() => player.replay()} icon="replay_30" class="only-maxified"></mwc-icon-button>
-                    <mwc-icon-button ?disabled=${disabled} class="play" @click=${() => player.togglePlay()} icon="${!player || player.state.playback.paused ? "play_circle" : "pause_circle"}"></mwc-icon-button>
-                    <mwc-icon-button ?disabled=${disabled || this.minified} @click=${() => player.forward()} icon="forward_30" class="only-maxified"></mwc-icon-button>
-                    <mwc-icon-button ?disabled=${disabled || currentAudioIndex === state.playlist.length - 1} @click=${() => { console.log("foo"); player.skipNext() }} icon="skip_next"></mwc-icon-button>
+                    <mwc-icon-button ?disabled=${disabled || currentAudioIndex === 0} @click=${() => session.skipPrevious()} icon="skip_previous"></mwc-icon-button>
+                    <mwc-icon-button ?disabled=${disabled || this.minified} @click=${() => session.replay()} icon="replay_30" class="only-maxified"></mwc-icon-button>
+                    <mwc-icon-button ?disabled=${disabled} class="play" @click=${() => session.togglePlay()} icon="${!session || session.playback.paused ? "play_circle" : "pause_circle"}"></mwc-icon-button>
+                    <mwc-icon-button ?disabled=${disabled || this.minified} @click=${() => session.forward()} icon="forward_30" class="only-maxified"></mwc-icon-button>
+                    <mwc-icon-button ?disabled=${disabled || currentAudioIndex === session.playlist.length - 1} @click=${() => { session.skipNext() }} icon="skip_next"></mwc-icon-button>
                 </div>
             </div>
         `
@@ -355,7 +353,7 @@ export class SyncedListeners extends LitElement {
         }
     `;
 
-    private _playerController = new SyncedPlayerController(this, ["listenerschange"]);
+    private sessionController = new SessionController(this, { subscribe: ["listeners"] });
 
     @state()
     minified = false;
@@ -367,7 +365,7 @@ export class SyncedListeners extends LitElement {
                     dialogTitle: "Invite listeners",
                     title: "Listen together with me!",
                     text: "I'd like to listen together with you 🎧 Come join me! 😊",
-                    url: this._playerController.player.inviteLink
+                    url: this.sessionController.session.invitationUrl
                 });
             } else {
                 window.app.showDialog("invite-listener-dialog");
@@ -376,8 +374,7 @@ export class SyncedListeners extends LitElement {
     }
 
     render() {
-        const listeners = this._playerController.player?.listeners || [];
-        console.log(listeners);
+        const listeners = this.sessionController.session?.listeners || [];
         return html`
             <div id="connected">
                 ${listeners.map(listener => html`
@@ -419,7 +416,7 @@ export class EditablePlaylist extends LitElement {
         }
     `;
 
-    private _playerController = new SyncedPlayerController(this, ["play", "pause", "playlistchange", "audiochange"]);
+    private sessionController = new SessionController(this, { subscribe: ["playlist"], listen: ["play", "pause", "audiochange"] });
     private _touch = {
         containerElement: null,
         listElements: [],
@@ -488,32 +485,31 @@ export class EditablePlaylist extends LitElement {
             this._touch.clonedElement.remove();
             this._touch.element.classList.remove("currently-moving");
 
-            this._playerController.player.moveAudio(this._touch.url, this._touch.deltaIndex);
+            this.sessionController.session.moveAudio(this._touch.url, this._touch.deltaIndex);
         }
     }
 
     selectAudio(event: any) {
-        const player = this._playerController.player;
-
         const audioElements = Array.from(this.shadowRoot.querySelectorAll("mwc-list-item"));
         const audioElement = audioElements[event.detail.index];
 
-        player.playAudio(audioElement.dataset.audio);
+        this.sessionController.session.playAudio(audioElement.dataset.audio);
     }
 
     render() {
-        const player = this._playerController.player;
-        const audios = player?.state.playlist || [];
-        const editable = (player instanceof SyncedPlayerHost);
+        console.log("editable playlist")
+        const session = this.sessionController.session;
+        const audios = session?.playlist || [];
+        const editable = (session.peer instanceof ListeningHost);
         if (editable) {
             return html`
                 <mwc-list activatable @action=${this.selectAudio} @touchmove=${this.touchMove} @touchend=${this.touchEnd}>
-                    ${repeat(audios, (audio) => audio.url, (audio, index) => html`
-                        <mwc-list-item ?activated=${audio.url == player.currentAudio.url} ?selected=${audio.url == player.currentAudio.url} twoline graphic="medium" hasMeta data-url="${audio.url}">
-                            <span>${audio.title}</span>
-                            <span slot="secondary">${audio.album}</span>
-                            <img slot="graphic" src="${audio.cover?.data &&  audio.cover?.format ? URL.createObjectURL(new Blob([audio.cover.data], { type: audio.cover.format })) : nothing}" />
-                            <mwc-icon slot="meta" @touchstart=${(event: TouchEvent) => this.touchStart(event, audio.url)}>drag_indicator</mwc-icon>
+                    ${repeat(audios, (audio) => audio.uri, (audio, index) => html`
+                        <mwc-list-item ?activated=${audio.uri == session.currentAudio.uri} ?selected=${audio.uri == session.currentAudio.uri} twoline graphic="medium" hasMeta data-url="${audio.uri}">
+                            <span>${until(window.audioInfoCache.getProperty(audio.uri, "title"), html`<loading-placeholder characters="15"></loading-placeholder>`)}</span>
+                            <span slot="secondary">${until(window.audioInfoCache.getProperty(audio.uri, "album"), html`<loading-placeholder characters="10"></loading-placeholder>`)}</span>
+                            <img slot="graphic" src="${until(window.audioInfoCache.getProperty(audio.uri, "cover").then((cover: CoverInfo) => cover? cover.objectUrl : defaultCoverObjectUrl), defaultCoverObjectUrl)}" />
+                            <mwc-icon slot="meta" @touchstart=${(event: TouchEvent) => this.touchStart(event, audio.uri)}>drag_indicator</mwc-icon>
                         </mwc-list-item>
                     `)}
                 </mwc-list>
@@ -521,11 +517,11 @@ export class EditablePlaylist extends LitElement {
         } else {
             return html`
                 <mwc-list activatable>
-                    ${repeat(audios, (audio) => audio.url, (audio, index) => html`
-                        <mwc-list-item ?activated=${audio.url == player.currentAudio.url} ?selected=${audio.url == player.currentAudio.url} twoline graphic="medium" hasMeta data-url="${audio.url}">
-                            <span>${audio.title}</span>
-                            <span slot="secondary">${audio.album}</span>
-                            <img slot="graphic" src="${audio.cover?.data &&  audio.cover?.format ? URL.createObjectURL(new Blob([audio.cover.data], { type: audio.cover.format })) : nothing}" />
+                    ${repeat(audios, (audio) => audio.uri, (audio, index) => html`
+                        <mwc-list-item ?activated=${audio.uri == session.currentAudio.uri} ?selected=${audio.uri == session.currentAudio.uri} twoline graphic="medium" hasMeta data-url="${audio.uri}">
+                            <span>${until(window.audioInfoCache.getProperty(audio.uri, "title"), html`<loading-placeholder characters="15"></loading-placeholder>`)}</span>
+                            <span slot="secondary">${until(window.audioInfoCache.getProperty(audio.uri, "album"), html`<loading-placeholder characters="10"></loading-placeholder>`)}</span>
+                            <img slot="graphic" src="${until(window.audioInfoCache.getProperty(audio.uri, "cover").then((cover: CoverInfo) => cover? cover.objectUrl : defaultCoverObjectUrl), defaultCoverObjectUrl)}" />
                         </mwc-list-item>
                     `)}
                 </mwc-list>
@@ -538,7 +534,7 @@ export class EditablePlaylist extends LitElement {
 export class AudioPlayer extends LitElement {
     static styles = css`
         :host {
-            --cover-size: min(calc(100vw - 2.0rem), 55vh);
+            --cover-size: min(calc(100vw - 2.0rem), calc(55 * var(--svh)));
             --minified-player: 0.0;
             --maxified-player: 1.0;
             --maxified-controls-height: 12.5rem;
@@ -614,7 +610,7 @@ export class AudioPlayer extends LitElement {
         }
     `;
 
-    private _playerController = new SyncedPlayerController(this, ["playlistchange"]);
+    private sessionController = new SessionController(this, { subscribe: ["playlist"] });
 
     @state()
     private _controlsMinified = false;
@@ -650,7 +646,7 @@ export class AudioPlayer extends LitElement {
         return html`
             <div id="content" @scroll=${this.contentScroll}>
                 <cover-and-information></cover-and-information>
-                ${this._playerController.player?.state?.playlist.length > 0 ? html`<editable-playlist></editable-playlist>` : nothing}
+                ${this.sessionController.session?.playlist?.length > 0 ? html`<editable-playlist></editable-playlist>` : nothing}
             </div>
             <div id="controls" class=${classMap({"minified": this._controlsMinified})}>
                 ${this._controlsMinified ? html`<mwc-fab mini icon="playlist_add" label="Add audio" @click=${() => { window.app.showDialog("add-audio-dialog") }}></mwc-fab>` : nothing}

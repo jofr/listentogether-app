@@ -1,5 +1,6 @@
-import { html, css } from "lit";
+import { html, css, nothing } from "lit";
 import { customElement, state } from "lit/decorators";
+import { until } from 'lit/directives/until.js';
 import "@material/mwc-button";
 import "@material/mwc-textfield";
 import "@material/mwc-list";
@@ -7,7 +8,12 @@ import "@material/mwc-list/mwc-check-list-item";
 import "@material/mwc-circular-progress-four-color";
 
 import { ModalDialog } from "./modal_dialog";
-import { SyncedPlayerListener, ConnectionState } from "../../synced_player/synced_player_listener";
+import { ListeningSession } from "../../listening/session";
+import { ListeningListener, ConnectionState } from "../../listening/peer";
+import { AudioInfo, CoverInfo } from "../../audio_info/extract";
+
+const defaultCoverData = `<svg xmlns="http://www.w3.org/2000/svg" height="48" width="48"><path d="M19.65 42Q16.5 42 14.325 39.825Q12.15 37.65 12.15 34.5Q12.15 31.35 14.325 29.175Q16.5 27 19.65 27Q21.05 27 22.175 27.4Q23.3 27.8 24.15 28.5V6H35.85V12.75H27.15V34.5Q27.15 37.65 24.975 39.825Q22.8 42 19.65 42Z"/></svg>`;
+const defaultCoverObjectUrl = URL.createObjectURL(new Blob([defaultCoverData], { type: "image/svg+xml" }));
 
 declare global {
     interface HTMLElementTagNameMap {
@@ -26,38 +32,40 @@ export class JoinListeningDialog extends ModalDialog {
         `
     ];
 
-    private _player: SyncedPlayerListener = null;
+    private possibleSession: ListeningSession = null;
 
-    set player(player: SyncedPlayerListener) {
-        this._player = player;
-        this._player.on("playlistchange", () => this.requestUpdate());
-        this._player.on("connectionchange", () => this.requestUpdate());
+    set session(session: ListeningSession) {
+        this.possibleSession = session;
+        this.possibleSession.subscribe(["playlist"], () => this.requestUpdate());
+        this.possibleSession.peer.on("connectionchange", () => this.requestUpdate());
     }
 
     @state()
-    get player() {
-        return this._player;
+    get session() {
+        return this.possibleSession;
     }
 
-    private async _join() {
-        if (this._player) {
-            await this._player.silentAudioActivation();
-            window.syncedPlayer = this._player;
-            this._player = null;
+    @state()
+    possiblePlaylist: AudioInfo[] = [];
+
+    private async join() {
+        if (this.session) {
+            window.session = this.session;
+            this.possibleSession = null;
         }
         super.hide();
     }
 
-    private _dontJoin() {
-        if (this._player) {
+    private dontJoin() {
+        if (this.session) {
             /* TODO: also disconnect/destroy the object correctly */
-            this._player = null;
+            this.possibleSession = null;
         }
         super.hide();
     }
 
     hide() {
-        this._dontJoin();
+        this.dontJoin();
     }
 
     renderConnecting() {
@@ -71,11 +79,11 @@ export class JoinListeningDialog extends ModalDialog {
         return html`
             <p>You have been invited to listen to a playlist together 📻 Do you want to join listening? 😃</p>
             <mwc-list>
-                ${this._player?.state.playlist.map(audio => html`
+                ${this.possibleSession.playlist.map(audio => html`
                     <mwc-list-item twoline graphic="medium">
-                        <span>${audio.title}</span>
-                        <span slot="secondary">${audio.album}</span>
-                        <img slot="graphic" src="${URL.createObjectURL(new Blob([audio.cover.data], { type: audio.cover.format }))}" />
+                        <span>${until(window.audioInfoCache.getProperty(audio.uri, "title"), html`<loading-placeholder characters="15"></loading-placeholder>`)}</span>
+                        <span slot="secondary">${until(window.audioInfoCache.getProperty(audio.uri, "album"), html`<loading-placeholder characters="10"></loading-placeholder>`)}</span>
+                        <img slot="graphic" src="${until(window.audioInfoCache.getProperty(audio.uri, "cover").then((cover: CoverInfo) => cover.objectUrl), defaultCoverObjectUrl)}" />
                     </mwc-list-item>
                 `)}
             </mwc-list>
@@ -89,9 +97,9 @@ export class JoinListeningDialog extends ModalDialog {
     }
 
     renderContent() {
-        if (!this._player || this._player.connectionState === ConnectionState.Connecting) {
+        if (!this.possibleSession || (this.possibleSession.peer as ListeningListener).connectionState === ConnectionState.CONNECTING) {
             return this.renderConnecting();
-        } else if (this._player.connectionState === ConnectionState.Connected) {
+        } else if ((this.possibleSession.peer as ListeningListener).connectionState === ConnectionState.CONNECTED) {
             return this.renderConnected();
         } else {
             return this.renderError();
@@ -99,15 +107,15 @@ export class JoinListeningDialog extends ModalDialog {
     }
 
     renderActions() {
-        if (this._player?.connectionState === ConnectionState.Error) {
+        if ((this.possibleSession?.peer as ListeningListener).connectionState === ConnectionState.ERROR) {
             return html`
                 <mwc-button label="Try again!" @click=${() => window.location.reload()}></mwc-button>
-                <mwc-button unelevated label="Start new!" @click=${this._dontJoin}></mwc-button>
+                <mwc-button unelevated label="Start new!" @click=${this.dontJoin}></mwc-button>
             `
         } else {
             return html`
-                <mwc-button label="Don't join" @click=${this._dontJoin}></mwc-button>
-                <mwc-button ?disabled=${!this._player || this._player.connectionState !== ConnectionState.Connected} unelevated icon="group_add" label="Join listening!" @click=${this._join}></mwc-button>
+                <mwc-button label="Don't join" @click=${this.dontJoin}></mwc-button>
+                <mwc-button ?disabled=${!this.possibleSession || (this.possibleSession.peer as ListeningListener).connectionState !== ConnectionState.CONNECTED} unelevated icon="group_add" label="Join listening!" @click=${this.join}></mwc-button>
             `
         }
     }

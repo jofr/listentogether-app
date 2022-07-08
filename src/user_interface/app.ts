@@ -3,6 +3,7 @@ import { customElement } from "lit/decorators";
 
 import { ModalDialog } from "./dialogs/modal_dialog";
 import "./elements/listener_avatar";
+import "./elements/loading_placeholder";
 import "./dialogs/add_audio_dialog";
 import "./dialogs/join_listening_dialog";
 import "./dialogs/invite_listener_dialog";

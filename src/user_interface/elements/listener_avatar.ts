@@ -38,10 +38,10 @@ export class ListenerAvatar extends LitElement {
     private _secondColor: string;
     private _angle: number;
 
-    @property()
+    @property({ reflect: true })
     id: string;
 
-    @property()
+    @property({ reflect: true })
     name: string;
 
     connectedCallback(): void {
@@ -52,6 +52,7 @@ export class ListenerAvatar extends LitElement {
     /* Mainly taken and modified from: https://github.com/tobiaslins/avatar/tree/master/src */
     private _generateGradient() {
         const hash = SparkMD5.hash(this.id);
+        console.error(this.id, hash)
 
         let firstColor = new Color(`#${hash.substring(0, 6)}`).saturate(0.5);
         const lightning = firstColor.hsl().color[2];
