@@ -1,24 +1,13 @@
 import * as musicMetadata from "music-metadata-browser";
 
-import { catchError, extractURLs, stringToBytes } from "./util"
-
-export type AudioInfo = {
-    url: string,
-    title: string,
-    artist: string,
-    album: string,
-    duration: number,
-    cover?: {
-        format: string,
-        data: Uint8Array | string
-    }
-}
+import { AudioInfo } from "./audio_info";
+import { catchError, extractUrls, stringToBytes } from "../util/util";
 
 enum FileType {
     Audio, HTML, RSS, Other
 }
 
-function titleFromURL(url: string) {
+function titleFromUrl(url: string) {
     const titleMatches = url.match(/\/([^\/?#]+)[^\/]*$/);
     if (titleMatches.length > 1) {
         return titleMatches[1];
@@ -28,26 +17,26 @@ function titleFromURL(url: string) {
 }
 
 function coverPicture(pictures: musicMetadata.IPicture[]) {
+    const toInternalCover = (cover: musicMetadata.IPicture) => {
+        return {
+            objectUrl: URL.createObjectURL(new Blob([cover.data], { type: cover.format })),
+            format: cover.format
+        }
+    };
+
     return pictures.reduce((previous, current) => {
-        if (current.name && ["front", "cover", "cover (front)"].includes(current.name.toLowerCase())) {
-            return current;
+        if (current.type && ["front", "cover", "cover (front)"].includes(current.type.toLowerCase())) {
+            return toInternalCover(current);
         } else {
             return previous;
         }
-    });
-}
-
-function defaultCoverPicture() {
-    return {
-        data: '<svg xmlns="http://www.w3.org/2000/svg" height="48" width="48"><path d="M19.65 42Q16.5 42 14.325 39.825Q12.15 37.65 12.15 34.5Q12.15 31.35 14.325 29.175Q16.5 27 19.65 27Q21.05 27 22.175 27.4Q23.3 27.8 24.15 28.5V6H35.85V12.75H27.15V34.5Q27.15 37.65 24.975 39.825Q22.8 42 19.65 42Z"/></svg>',
-        format: "image/svg+xml"
-    }
+    }, toInternalCover(pictures[0]));
 }
 
 function fileTypeFromContentTypeHeader(contentType: string) {
     const types = [
         {
-            mimeTypes: ["audio/vnd.dolby.dd-raw", "audio/x-musepack", "audio/aiff", "audio/x-dsf", "audio/x-flac", "audio/wavpack", "audio/ape", "audio/mpeg", "audio/amr", "audio/x-it", "audio/vnd.wave", "audio/qcelp", "audio/opus", "audio/ogg", "audio/mp4", "audio/x-m4a", "audio/aac"],
+            mimeTypes: ["audio/vnd.dolby.dd-raw", "audio/x-musepack", "audio/aiff", "audio/x-dsf", "audio/x-flac", "audio/wavpack", "audio/ape", "audio/mpeg", "audio/amr", "audio/x-it", "audio/vnd.wave", "audio/qcelp", "audio/opus", "audio/ogg", "audio/mp3", "audio/mp4", "audio/x-m4a", "audio/aac"],
             fileType: FileType.Audio
         },
         {
@@ -239,14 +228,17 @@ async function extractAudioInfoFromStream(stream: ReadableStream): Promise<Audio
     
                 if (isAudio) {
                     const metadata = await musicMetadata.parseBuffer(buffer);
-                    resolveAudioInfo({
-                        url: "",
+                    const audioInfo: AudioInfo = {
+                        uri: "",
                         title: metadata.common?.title || "",
                         album: metadata.common?.album || "",
                         artist: metadata.common?.artist || "",
-                        duration: metadata.format?.duration || 0.0,
-                        cover: metadata.common?.picture ? coverPicture(metadata.common.picture) : defaultCoverPicture(),
-                    });
+                        duration: metadata.format?.duration || 0.0
+                    };
+                    if (metadata.common?.picture) {
+                        audioInfo.cover = coverPicture(metadata.common.picture);
+                    }
+                    resolveAudioInfo(audioInfo);
                 }
             }
         }
@@ -259,7 +251,6 @@ async function extractAudioInfoFromStream(stream: ReadableStream): Promise<Audio
 async function extractAudioInfoUsingAudioElement(url: string): Promise<AudioInfo | null> {
     let resolveFileType: (value: FileType | PromiseLike<FileType>) => void;
     const fileTypePromise = new Promise<FileType>((resolve, reject) => resolveFileType = resolve);
-
     const audioElement = new Audio();
     audioElement.preload = "metadata";
     audioElement.addEventListener("error", () => resolveFileType(FileType.Other));
@@ -269,19 +260,18 @@ async function extractAudioInfoUsingAudioElement(url: string): Promise<AudioInfo
     const fileType = await fileTypePromise;
     if (fileType === FileType.Audio) {
         return {
-            url: url,
-            title: titleFromURL(url),
+            uri: url,
+            title: titleFromUrl(url),
             album: "",
             artist: "",
-            duration: audioElement.duration,
-            cover: defaultCoverPicture(),
+            duration: audioElement.duration
         };
     } else {
         return null;
     }
 }
 
-async function extractAudioInfoFromURL(url: string): Promise<AudioInfo | null> {
+export async function extractAudioInfoFromUrl(url: string): Promise<AudioInfo | null> {
     let audio: AudioInfo | null = null;
 
     const [error, response] = await catchError(fetch(url));
@@ -290,8 +280,8 @@ async function extractAudioInfoFromURL(url: string): Promise<AudioInfo | null> {
         if (!contentType || fileTypeFromContentTypeHeader(contentType) === FileType.Audio) {
             audio = await extractAudioInfoFromStream((response as Response).body);
             if (audio !==  null) {
-                audio.url = url;
-                audio.title = audio.title != "" ? audio.title : titleFromURL(url);
+                audio.uri = url;
+                audio.title = audio.title != "" ? audio.title : titleFromUrl(url);
             }
         } else {
             (response as Response).body.cancel();
@@ -300,21 +290,25 @@ async function extractAudioInfoFromURL(url: string): Promise<AudioInfo | null> {
         audio = await extractAudioInfoUsingAudioElement(url);
     }
 
+    if (audio !== null) {
+        window.audioInfoCache.set(url, audio);
+    }
+
     return audio;
 }
 
 export async function extractAudios(input: string): Promise<AudioInfo[] | null> {
-    const urls = extractURLs(input);
+    const urls = extractUrls(input);
 
     if (urls === null) {
         return null;
     }
 
     let audios = [];
-    const possibles = await Promise.allSettled(urls.map(extractAudioInfoFromURL));
-    for (const possible of possibles) {
-        if (possible.status == "fulfilled" && possible.value !== null) {
-            audios = audios.concat(possible.value);
+    const possibleAudios = await Promise.allSettled(urls.map(extractAudioInfoFromUrl));
+    for (const possibleAudio of possibleAudios) {
+        if (possibleAudio.status === "fulfilled" && possibleAudio.value !== null) {
+            audios = audios.concat(possibleAudio.value);
         }
     }
 
