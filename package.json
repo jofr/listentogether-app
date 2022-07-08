@@ -1,7 +1,7 @@
 {
   "scripts": {
     "dev": "parcel watch src/index.html --no-hmr",
-    "prebuild": "mkdir -p dist && rm dist/* && cp res/silence.mp3 dist",
+    "prebuild": "mkdir -p dist && rm -rf dist/ && cp res/silence.mp3 dist",
     "build": "parcel build src/index.html",
     "postbuild": "cap sync"
   },
