@@ -2,5 +2,13 @@
 	{
 		"pkg": "@capacitor/share",
 		"classpath": "com.capacitorjs.plugins.share.SharePlugin"
+	},
+	{
+		"pkg": "@capacitor/app",
+		"classpath": "com.capacitorjs.plugins.app.AppPlugin"
+	},
+	{
+		"pkg": "capacitor-media-session",
+		"classpath": "io.github.jofr.capacitor.mediasessionplugin.MediaSessionPlugin"
 	}
 ]
