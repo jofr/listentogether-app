@@ -1,4 +1,4 @@
-export function extractURLs(input: string): string[] | null {
+export function extractUrls(input: string): string[] | null {
     return input.match(/\bhttps?:\/\/\S+/gi);
 }
 
@@ -9,7 +9,7 @@ export function prettyTime(seconds: number) {
 }
 
 export async function catchError<T>(promise: Promise<T>) {
-    return promise.then((resolved: T) => [null, resolved]).catch((error: Error) => [error || true, null])
+    return promise.then((resolved: T) => [null, resolved]).catch((error: Error) => [error || true, null]);
 }
 
 export function stringToBytes(string: string) {
@@ -18,4 +18,8 @@ export function stringToBytes(string: string) {
 
 export function clamp(value: number, min: number, max: number) {
     return Math.min(Math.max(value, min), max);
+}
+
+export function deepCopy(x: any) {
+    return JSON.parse(JSON.stringify(x));
 }
