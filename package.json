@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "dev": "parcel watch src/index.html --no-hmr",
+    "dev": "parcel serve src/index.html --no-hmr",
     "prebuild": "mkdir -p dist && rm -rf dist/* && cp res/silence.mp3 dist/",
     "build": "parcel build src/index.html",
     "postbuild": "cap sync"
@@ -19,7 +19,7 @@
     "@parcel/packager-raw-url": "^2.6.0",
     "@parcel/transformer-webmanifest": "^2.6.0",
     "@types/serviceworker": "^0.0.47",
-    "capacitor-media-session": "file:../capacitor-media-session",
+    "@jofr/capacitor-media-session": "^1.0.1",
     "color": "^4.2.3",
     "events": "^3.3.0",
     "lit": "^2.2.6",

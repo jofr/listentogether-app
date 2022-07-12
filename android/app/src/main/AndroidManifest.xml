@@ -15,7 +15,7 @@
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true">
 
-        <service
+        <!--<service
             android:name="io.github.jofr.capacitor.mediasessionplugin.MediaSessionService"
             android:enabled="true"
             android:exported="true"
@@ -23,13 +23,13 @@
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
-        </service>
+        </service>-->
         
-        <receiver android:name="androidx.media.session.MediaButtonReceiver" >
+        <!--<receiver android:name="androidx.media.session.MediaButtonReceiver" >
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
-        </receiver>
+        </receiver>-->
 
         <activity
             android:name=".MainActivity"

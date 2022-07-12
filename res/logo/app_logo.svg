@@ -14,9 +14,9 @@
    id="svg8"
    inkscape:version="1.0.2 (e86c870879, 2021-01-15)"
    sodipodi:docname="app_logo.svg"
-   inkscape:export-filename="/home/jonas/code/listen_together/dist/app_logo_192.png"
-   inkscape:export-xdpi="48.77"
-   inkscape:export-ydpi="48.77">
+   inkscape:export-filename="/home/jonas/code/listen_together/src/logo/app_logo_512.png"
+   inkscape:export-xdpi="130.05"
+   inkscape:export-ydpi="130.05">
   <defs
      id="defs2">
     <inkscape:path-effect
@@ -28,7 +28,7 @@
        unit="px"
        method="auto"
        mode="F"
-       radius="60"
+       radius="0"
        chamfer_steps="1"
        flexible="false"
        use_knot_distance="true"
@@ -128,9 +128,9 @@
        height="99.998672"
        x="0.066821806"
        y="0.0095390799"
-       inkscape:path-effect="#path-effect5442"
+       sodipodi:type="rect"
        d="M 15.941822,0.00953908 H 84.167255 A 15.875,15.875 45 0 1 100.04226,15.884539 l 0,68.248673 A 15.875,15.875 135 0 1 84.167255,100.00821 H 15.941822 A 15.875,15.875 45 0 1 0.06682181,84.133212 V 15.884539 A 15.875,15.875 135 0 1 15.941822,0.00953908 Z"
-       sodipodi:type="rect" />
+       inkscape:path-effect="#path-effect5442" />
     <path
        id="path1141"
        style="fill:#ffffff;fill-opacity:1;stroke-width:2.19947"

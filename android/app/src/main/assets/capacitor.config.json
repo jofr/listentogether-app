@@ -2,5 +2,10 @@
 	"appId": "io.gitlab.listentogether",
 	"appName": "ListenTogether",
 	"webDir": "dist",
-	"bundledWebRuntime": false
+	"bundledWebRuntime": false,
+	"plugins": {
+		"MediaSession": {
+			"foregroundService": "duringPlayback"
+		}
+	}
 }
