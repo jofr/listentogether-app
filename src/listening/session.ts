@@ -1,4 +1,4 @@
-import { MediaSession } from "capacitor-media-session";
+import { MediaSession } from "@jofr/capacitor-media-session";
 
 import { Events } from "../util/events";
 import { SyncedListeningState } from "./sync";
@@ -78,8 +78,7 @@ export class ListeningSession extends Events {
         if (audioInfo.cover) {
             mediaMetadata.artwork = [
                 {
-                    //src: audioInfo.cover.dataUrl,
-                    src: "https://storage.googleapis.com/media-session/sintel/artwork-256.png",
+                    src: audioInfo.cover.dataUrl,
                     sizes: "256x256",
                     type: "image/png"
                 }
