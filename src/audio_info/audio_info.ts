@@ -1,4 +1,5 @@
 export type CoverInfo = {
+    dataUrl: string,
     objectUrl: string,
     format: string
 }

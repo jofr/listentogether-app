@@ -19,7 +19,7 @@ export class ListeningSession extends Events {
 
         MediaSession.setActionHandler({ action: "play" }, () => this.togglePlay("play"));
         MediaSession.setActionHandler({ action: "pause" }, () => this.togglePlay("pause"));
-        MediaSession.setActionHandler({ action: "seekto" }, (details: any) => this.seek(details.seekTime));
+        MediaSession.setActionHandler({ action: "seekto" }, (details: MediaSessionActionDetails) => this.seek(details.seekTime));
         MediaSession.setActionHandler({ action: "seekbackward" }, () => this.replay());
         MediaSession.setActionHandler({ action: "seekforward" }, () => this.forward());
 
@@ -78,9 +78,10 @@ export class ListeningSession extends Events {
         if (audioInfo.cover) {
             mediaMetadata.artwork = [
                 {
-                    src: audioInfo.cover.objectUrl,
-                    sizes: "361x361",
-                    type: audioInfo.cover.format
+                    //src: audioInfo.cover.dataUrl,
+                    src: "https://storage.googleapis.com/media-session/sintel/artwork-256.png",
+                    sizes: "256x256",
+                    type: "image/png"
                 }
             ]
         }

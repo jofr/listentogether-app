@@ -19,6 +19,7 @@ function titleFromUrl(url: string) {
 function coverPicture(pictures: musicMetadata.IPicture[]) {
     const toInternalCover = (cover: musicMetadata.IPicture) => {
         return {
+            dataUrl: `data:${cover.format};base64,${cover.data.toString("base64")}`,
             objectUrl: URL.createObjectURL(new Blob([cover.data], { type: cover.format })),
             format: cover.format
         }
