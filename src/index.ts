@@ -55,8 +55,12 @@ Object.defineProperty(window, "session", {
 });
 
 /* Get viewport size without browser chrome for correct initial sizing (TODO: change as soon as svh unit is widely supported) */
-let svh = window.innerHeight * 0.01;
-document.documentElement.style.setProperty('--svh', `${svh}px`);
+const calculateSvh = () => {
+    let svh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--svh', `${svh}px`);
+}
+window.addEventListener("resize", calculateSvh);
+calculateSvh();
 
 async function initializeServiceWorker() {
     await navigator.serviceWorker.register(new URL("service-worker.ts", import.meta.url), { type: "module" });
@@ -68,7 +72,7 @@ document.addEventListener("DOMContentLoaded", () => {
         //document.body.classList.add("dark-mode"); /* TODO: needs some fixes for material web components */
     }
 
-    /* Set up initial host peer (after DOMContentLoaded so that user interface gets syncedplayerchange event) */
+    /* Set up initial host peer (after DOMContentLoaded so that user interface gets sessionchange event) */
     window.app = document.querySelector("listen-together-app");
     window.player = new AudioElementPlayer();
     window.session = ListeningSession.CreateHost();
