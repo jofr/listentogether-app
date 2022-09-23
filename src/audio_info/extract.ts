@@ -201,11 +201,12 @@ async function extractAudioInfoFromStream(stream: ReadableStream): Promise<Audio
     const readStream = async () => {
         const reader = stream.getReader();
         const fileTypeBytes = 100;
-        const metadataBytes = 500000;
+        const metadataBytes = 10000000;
         let fileTypeDetermined = false;
         let isAudio = false;
+        let reachedEnd = false;
         let buffer = new Uint8Array();
-        while (buffer.length < (isAudio ? metadataBytes : fileTypeBytes)) {
+        while (!reachedEnd && buffer.length < (isAudio ? metadataBytes : fileTypeBytes)) {
             const { done, value } = await reader.read();
     
             if (!done) {
@@ -225,10 +226,12 @@ async function extractAudioInfoFromStream(stream: ReadableStream): Promise<Audio
             }
     
             if (done || buffer.length > (isAudio ? metadataBytes : fileTypeBytes)) {
+                reachedEnd = true;
                 reader.cancel();
     
                 if (isAudio) {
                     const metadata = await musicMetadata.parseBuffer(buffer);
+                    console.log(metadata)
                     const audioInfo: AudioInfo = {
                         uri: "",
                         title: metadata.common?.title || "",
@@ -281,8 +284,12 @@ export async function extractAudioInfoFromUrl(url: string): Promise<AudioInfo | 
         if (!contentType || fileTypeFromContentTypeHeader(contentType) === FileType.Audio) {
             audio = await extractAudioInfoFromStream((response as Response).body);
             if (audio !==  null) {
-                audio.uri = url;
+                audio.uri = (response as Response).url; // might have been redirected, uri is the redirected url (which is also the one getting cached, so needs to be set to this to reach the cache)
                 audio.title = audio.title != "" ? audio.title : titleFromUrl(url);
+
+                caches.open("audio-cache").then(cache => {
+                    cache.add(audio.uri);
+                });
             }
         } else {
             (response as Response).body.cancel();
