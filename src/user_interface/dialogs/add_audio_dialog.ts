@@ -1,4 +1,4 @@
-import { html, css, nothing } from "lit";
+import { html, css } from "lit";
 import { customElement, state } from "lit/decorators";
 import "@material/mwc-button";
 import "@material/mwc-textfield";
@@ -34,6 +34,20 @@ export class AddAudioDialog extends ModalDialog {
             mwc-circular-progress-four-color {
                 margin: 0px auto;
             }
+
+            mwc-textfield {
+                --mdc-text-field-label-ink-color: var(--on-surface-variant);
+                --mdc-text-field-ink-color: var(--on-surface);
+                --mdc-text-field-outlined-idle-border-color: var(--outline);
+                --mdc-text-field-outlined-hover-border-color: var(--on-surface);
+            }
+
+            mwc-button {
+                --mdc-button-disabled-fill-color: var(--on-surface-opacity-12);
+                --mdc-button-disabled-ink-color: var(--on-surface-opacity-38);
+                --mdc-theme-primary: var(--primary);
+                --mdc-theme-on-primary: var(--on-primary);
+            }
         `
     ];
 
@@ -59,9 +73,12 @@ export class AddAudioDialog extends ModalDialog {
     }
 
     private addToPlaylist() {
+        const selectedIndices = this.shadowRoot.querySelector("mwc-list").index as Set<number>;
         if (this.possibleAudios && this.sessionController.session) {
-            for (const audio of this.possibleAudios) {
-                this.sessionController.session.addAudio(audio.uri);
+            for (let i = 0; i < this.possibleAudios.length; i++) {
+                if (selectedIndices.has(i)) {
+                    this.sessionController.session.addAudio(this.possibleAudios[i].uri);
+                }
             }
         }
         this.hide();
@@ -76,13 +93,13 @@ export class AddAudioDialog extends ModalDialog {
     renderContent() {
         if (this.possibleAudios) {
             return html`
-                <mwc-list>
+                <mwc-list multi>
                     ${this.possibleAudios?.map(audio => html`
-                        <mwc-list-item selected twoline graphic="medium">
+                        <mwc-check-list-item selected twoline graphic="medium">
                             <span>${audio.title}</span>
                             <span slot="secondary">${audio.album}</span>
                             <img slot="graphic" src="${audio.cover ? audio.cover.objectUrl : defaultCoverObjectUrl}" />
-                        </mwc-list-item>
+                        </mwc-check-list-item>
                     `)}
                 </mwc-list>
             `;
@@ -92,7 +109,7 @@ export class AddAudioDialog extends ModalDialog {
             `
         } else {
             return html`
-                <mwc-textfield outlined label="Paste audio information" @input=${this.onInput}></mwc-textfield>
+                <mwc-textfield outlined label="Paste audio URLs" @input=${this.onInput}></mwc-textfield>
             `
         }
     }
