@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@200;400;600&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css?family=Material+Icons&display=block" rel="stylesheet">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,300,1,0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@200;400;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css?family=Material+Icons&display=block" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,300,1,0" rel="stylesheet" />
     <script src="index.ts" type="module"></script>
-    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="manifest" href="manifest.webmanifest" />
     <style>
       * {
         box-sizing: border-box;
@@ -33,9 +33,19 @@
         --on-background: #131512;
         --surface: #fcfdf7;
         --on-surface: #131512;
+        --on-surface-opacity-12: #1315121f;
+        --on-surface-opacity-38: #13151261;
         --surface-variant: #dfe5da;
         --on-surface-variant: #40473e;
         --outline: #737a70;
+        --error: #b52117;
+        --on-error: #ffffff;
+        --error-container: #f9dfdd;
+        --on-error-container: #3f0603;
+
+        --content-padding: 1.5rem;
+        --title-padding: 1.0rem;
+        --icon-padding: 1.0rem;
 
         --mdc-theme-primary: var(--primary);
         --mdc-theme-on-primary: var(--on-primary);
@@ -45,7 +55,9 @@
         --mdc-theme-on-surface: var(--on-surface);
         --mdc-theme-background: var(--background);
         --mdc-theme-on-background: var(--on-background);
-        --padding: 1.0rem;
+
+        --maxified-controls: 1.0;
+        --minified-controls: 0.0;
 
         margin: 0px;
         overflow: hidden;
@@ -65,6 +77,8 @@
         --on-background: #e3e4de;
         --surface: #131512;
         --on-surface: #e3e4de;
+        --on-surface-opacity-12: #e3e4de1f;
+        --on-surface-opacity-38: #e3e4de61;
         --surface-variant: #40473e;
         --on-surface-variant: #c4cabe;
         --outline: #8e9489;
@@ -73,11 +87,15 @@
   </head>
   <body>
     <listen-together-app>
-      <audio-player slot="page"></audio-player>
+      <now-playing slot="page"></now-playing>
+      <editable-playlist slot="page"></editable-playlist>
       <add-audio-dialog slot="dialog"></add-audio-dialog>
       <invite-listener-dialog slot="dialog"></invite-listener-dialog>
       <join-listening-dialog slot="dialog"></join-listening-dialog>
       <share-settings-dialog slot="dialog"></share-settings-dialog>
     </listen-together-app>
+    <mwc-snackbar id="listener-to-host-snackbar" labelText="Your host left and ended the listening session. Just continue listening on your own or invite new co-listeners 😃" timeoutMs="-1">
+      <mwc-icon-button icon="close" slot="dismiss"></mwc-icon-button>
+    </mwc-snackbar>
   </body>
 </html>

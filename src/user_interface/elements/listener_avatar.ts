@@ -2,10 +2,6 @@ import * as Color from "color";
 import * as SparkMD5 from "spark-md5";
 import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators";
-import "@material/mwc-button";
-import "@material/mwc-textfield";
-import "@material/mwc-list";
-import "@material/mwc-list/mwc-check-list-item";
 
 declare global {
     interface HTMLElementTagNameMap {
@@ -34,25 +30,19 @@ export class ListenerAvatar extends LitElement {
         }
     `;
 
-    private _firstColor: string;
-    private _secondColor: string;
-    private _angle: number;
+    private firstColor: string;
+    private secondColor: string;
+    private angle: number;
 
-    @property({ reflect: true })
+    @property()
     id: string;
 
-    @property({ reflect: true })
+    @property()
     name: string;
 
-    connectedCallback(): void {
-        super.connectedCallback();
-        this._generateGradient();
-    }
-
     /* Mainly taken and modified from: https://github.com/tobiaslins/avatar/tree/master/src */
-    private _generateGradient() {
+    private generateGradient() {
         const hash = SparkMD5.hash(this.id);
-        console.error(this.id, hash)
 
         let firstColor = new Color(`#${hash.substring(0, 6)}`).saturate(0.5);
         const lightning = firstColor.hsl().color[2];
@@ -79,15 +69,16 @@ export class ListenerAvatar extends LitElement {
             secondColor = secondColor.rotate(-200).saturate(0.5);
         }
 
-        this._firstColor = firstColor.hex();
-        this._secondColor = secondColor.hex();
-        this._angle = 10 + 2 * parseInt(hash.substr(0, 1), 16);
+        this.firstColor = firstColor.hex();
+        this.secondColor = secondColor.hex();
+        this.angle = 10 + 2 * parseInt(hash.substr(0, 1), 16);
     }
 
-
     render() {
+        this.generateGradient();
+
         return html`
-            <div class="avatar" style="--angle: ${this._angle}deg; --first-color: ${this._firstColor}; --second-color: ${this._secondColor};">
+            <div class="avatar" style="--angle: ${this.angle}deg; --first-color: ${this.firstColor}; --second-color: ${this.secondColor};">
                 <span>${this.name}</span>
             </div>
         `

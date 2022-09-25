@@ -1,7 +1,6 @@
 import { LitElement, html, css, CSSResultGroup } from "lit";
-import { customElement, state, query } from "lit/decorators";
+import { customElement, state } from "lit/decorators";
 import { classMap } from "lit/directives/class-map";
-import "@material/mwc-button";
 
 @customElement("app-menu")
 export class AppMenu extends LitElement {
@@ -101,13 +100,11 @@ export class AppMenu extends LitElement {
     }
 
     show() {
-        history.pushState({ type: "modalDialog" }, '');
-        window.addEventListener("popstate", this.onBackButton);
+        window.backButton.push(() => { this.hide() });
         this.visible = true;
     }
 
     hide() {
-        window.removeEventListener("popstate", this.onBackButton);
         this.visible = false;
     }
 
