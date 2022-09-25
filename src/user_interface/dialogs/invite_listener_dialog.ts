@@ -51,7 +51,6 @@ export class InviteListenerDialog extends ModalDialog {
     }
 
     private copyInvitationLink(event) {
-        console.log(event)
         navigator.clipboard.writeText(this.sessionController.session.invitationUrl);
         this.hide();
     }

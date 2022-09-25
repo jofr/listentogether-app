@@ -233,7 +233,6 @@ async function extractAudioInfoFromStream(stream: ReadableStream): Promise<Audio
     
                 if (isAudio) {
                     const metadata = await musicMetadata.parseBuffer(buffer);
-                    console.log(metadata)
                     const audioInfo: AudioInfo = {
                         uri: "",
                         title: metadata.common?.title || "",
