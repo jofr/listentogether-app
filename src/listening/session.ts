@@ -44,6 +44,10 @@ export class ListeningSession extends Events {
         return new ListeningSession(state, listener);
     }
 
+    destroy() {
+        this.peer.destroy();
+    }
+
     transformToHost() {
         this.peer = new ListeningHost(this.internalState);
         window.session = window.session; /* TODO: triggers updates, solve this in a better way */

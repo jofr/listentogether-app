@@ -56,6 +56,10 @@ class ListeningPeer extends Events {
         }
     }
 
+    destroy(): void {
+        this.peer.destroy();        
+    }
+
     get id(): string {
         return this.peer.id;
     }

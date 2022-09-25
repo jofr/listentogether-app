@@ -95,7 +95,7 @@ Object.defineProperty(window, "session", {
 
     set: function(session: ListeningSession) {
         listeningSession = session;
-        session.on("listenertohost", () => { console.log("listenertohost"); (document.querySelector("#listener-to-host-snackbar") as any).show(); });
+        session.on("listenertohost", () => { (document.querySelector("#listener-to-host-snackbar") as any).show(); });
         window.player.listeningState = listeningSession.listeningState;
         window.dispatchEvent(new CustomEvent("sessionchange"));
     }
