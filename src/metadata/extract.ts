@@ -1,7 +1,7 @@
 import * as musicMetadata from "music-metadata-browser";
 
-import { AudioInfo } from "./audio_info";
-import { catchError, extractUrls, stringToBytes } from "../util/util";
+import { AudioInfo } from "./types";
+import { catchError, stringToBytes } from "../util/util";
 
 enum FileType {
     Audio, HTML, RSS, Other
@@ -18,9 +18,11 @@ function titleFromUrl(url: string) {
 
 function coverPicture(pictures: musicMetadata.IPicture[]) {
     const toInternalCover = (cover: musicMetadata.IPicture) => {
+        const objectUrl = URL.createObjectURL(new Blob([cover.data], { type: cover.format }))
         return {
+            url: objectUrl,
             dataUrl: `data:${cover.format};base64,${cover.data.toString("base64")}`,
-            objectUrl: URL.createObjectURL(new Blob([cover.data], { type: cover.format })),
+            objectUrl: objectUrl,
             format: cover.format
         }
     };
@@ -201,7 +203,7 @@ async function extractAudioInfoFromStream(stream: ReadableStream): Promise<Audio
     const readStream = async () => {
         const reader = stream.getReader();
         const fileTypeBytes = 100;
-        const metadataBytes = 10000000;
+        const metadataBytes = 3000000;
         let fileTypeDetermined = false;
         let isAudio = false;
         let reachedEnd = false;
@@ -298,31 +300,5 @@ export async function extractAudioInfoFromUrl(url: string): Promise<AudioInfo | 
         audio = await extractAudioInfoUsingAudioElement(url);
     }
 
-    if (audio !== null) {
-        window.audioInfoCache.set(url, audio);
-    }
-
     return audio;
-}
-
-export async function extractAudios(input: string): Promise<AudioInfo[] | null> {
-    const urls = extractUrls(input);
-
-    if (urls === null) {
-        return null;
-    }
-
-    let audios = [];
-    const possibleAudios = await Promise.allSettled(urls.map(extractAudioInfoFromUrl));
-    for (const possibleAudio of possibleAudios) {
-        if (possibleAudio.status === "fulfilled" && possibleAudio.value !== null) {
-            audios = audios.concat(possibleAudio.value);
-        }
-    }
-
-    if (audios.length > 0) {
-        return audios;
-    } else {
-        return null;
-    }
 }
