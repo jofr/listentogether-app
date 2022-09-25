@@ -8,18 +8,21 @@
   "devDependencies": {
     "@capacitor/app": "^1.1.1",
     "@capacitor/cli": "^3.6.0",
+    "@jofr/capacitor-media-session": "^1.0.3",
     "@material/mwc-button": "^0.26.1",
     "@material/mwc-circular-progress-four-color": "^0.26.1",
     "@material/mwc-fab": "^0.26.1",
     "@material/mwc-icon-button": "^0.26.1",
     "@material/mwc-list": "^0.26.1",
+    "@material/mwc-menu": "^0.26.1",
     "@material/mwc-ripple": "^0.26.1",
     "@material/mwc-slider": "^0.26.1",
+    "@material/mwc-snackbar": "^0.27.0",
     "@material/mwc-textfield": "^0.26.1",
     "@parcel/packager-raw-url": "^2.6.0",
+    "@parcel/service-worker": "^2.6.2",
     "@parcel/transformer-webmanifest": "^2.6.0",
     "@types/serviceworker": "^0.0.47",
-    "@jofr/capacitor-media-session": "^1.0.1",
     "color": "^4.2.3",
     "events": "^3.3.0",
     "lit": "^2.2.6",
@@ -36,6 +39,7 @@
     "token-types": "^4.2.0",
     "workbox-cacheable-response": "^6.5.3",
     "workbox-expiration": "^6.5.3",
+    "workbox-precaching": "^6.5.3",
     "workbox-range-requests": "^6.5.3",
     "workbox-routing": "^6.5.3",
     "workbox-strategies": "^6.5.3",
@@ -44,6 +48,7 @@
   "dependencies": {
     "@capacitor/android": "^3.6.0",
     "@capacitor/core": "^3.6.0",
-    "@capacitor/share": "^1.1.2"
+    "@capacitor/share": "^1.1.2",
+    "capacitor-echo-plugin": "file:../capacitor-echo-plugin"
   }
 }

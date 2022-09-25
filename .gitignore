@@ -3,3 +3,4 @@ dist/
 .parcel-cache/
 res/assetlinks.json
 android/app/release
+.vscode/
