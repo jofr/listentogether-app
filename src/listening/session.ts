@@ -1,10 +1,10 @@
 import { MediaSession } from "@jofr/capacitor-media-session";
 
 import { Events } from "../util/events";
-import { SyncedListeningState } from "./sync";
+import { SyncedListeningState } from "./synced_state";
 import { ListeningHost, ListeningListener } from "./peer";
 import { AudioUri, ListeningState, PlaybackState } from "./state";
-import { AudioInfo } from "../audio_info/audio_info";
+import { AudioInfo } from "../metadata/types";
 import { AudioPlayer } from "../player/audio_player";
 import { logger } from "../util/logger";
 
@@ -14,7 +14,7 @@ export type ListenerInfo = {
 }
 
 export class ListeningSession extends Events {
-    constructor(private internalState: SyncedListeningState, readonly peer: ListeningHost | ListeningListener) {
+    constructor(private internalState: SyncedListeningState, public peer: ListeningHost | ListeningListener) {
         super();
 
         MediaSession.setActionHandler({ action: "play" }, () => this.togglePlay("play"));
@@ -22,8 +22,10 @@ export class ListeningSession extends Events {
         MediaSession.setActionHandler({ action: "seekto" }, (details: MediaSessionActionDetails) => this.seek(details.seekTime));
         MediaSession.setActionHandler({ action: "seekbackward" }, () => this.replay());
         MediaSession.setActionHandler({ action: "seekforward" }, () => this.forward());
+        MediaSession.setActionHandler({ action: "stop" }, () => this.stop());
 
         this.player.on(["play", "pause", "durationchange", "seeked"], this.updateMediaSessionPlaybackState);
+        this.player.on(["ended"], this.skipNext.bind(this));
         internalState.subscribe(["playback/currentAudio", "playlist"], this.updateMediaSessionActions);
         internalState.subscribe(["playback/currentAudio"], this.updateMediaSessionMetadata);
     }
@@ -40,6 +42,12 @@ export class ListeningSession extends Events {
         const listener = new ListeningListener(hostId, state);
 
         return new ListeningSession(state, listener);
+    }
+
+    transformToHost() {
+        this.peer = new ListeningHost(this.internalState);
+        window.session = window.session; /* TODO: triggers updates, solve this in a better way */
+        this.emit("listenertohost");
     }
 
     private updateMediaSessionPlaybackState = () => {
@@ -68,7 +76,7 @@ export class ListeningSession extends Events {
     }
 
     private updateMediaSessionMetadata = async () => {
-        const audioInfo = await window.audioInfoCache.get(this.currentAudio.uri);
+        const audioInfo = await window.metadataCache.getAudioInfo(this.currentAudio.uri);
         const mediaMetadata: MediaMetadataInit = {
             title: audioInfo.title,
             artist: audioInfo.artist,
@@ -78,7 +86,7 @@ export class ListeningSession extends Events {
         if (audioInfo.cover) {
             mediaMetadata.artwork = [
                 {
-                    src: audioInfo.cover.dataUrl,
+                    src: audioInfo.cover.objectUrl,
                     sizes: "256x256",
                     type: "image/png"
                 }
@@ -95,6 +103,10 @@ export class ListeningSession extends Events {
         if (this.internalState.playback.currentAudio === null) {
             this.playAudio(audio);
         }
+    }
+
+    removeAudio(audio: AudioUri) {
+        console.log("removeAudio");
     }
 
     moveAudio(url: string, deltaIndex: number) {
@@ -149,6 +161,10 @@ export class ListeningSession extends Events {
         if ((index + 1) < this.internalState.playlist.length) {
             this.playAudio(this.internalState.playlist[index + 1]);
         }
+    }
+
+    stop() {
+        this.togglePlay("pause");
     }
 
     on(eventName: string | string[], eventHandler: (...args: any[]) => void) {
@@ -206,7 +222,7 @@ export class ListeningSession extends Events {
         return new Promise(async (resolve, reject) => {
             const playlist: AudioInfo[] = [];
             for (const audioUri of this.internalState.playlist) {
-                const audioInfo = await window.audioInfoCache.get(audioUri);
+                const audioInfo = await window.metadataCache.getAudioInfo(audioUri);
                 if (audioInfo) {
                     playlist.push(audioInfo);
                 } else {

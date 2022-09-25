@@ -2,7 +2,7 @@ import Peer, { DataConnection } from "peerjs";
 
 import { Events } from "../util/events";
 import { ListenerId, ListeningState } from "./state";
-import { SyncedListeningState, SyncMessage } from "./sync";
+import { SyncedListeningState, SyncMessage } from "./synced_state";
 import { logger } from "../util/logger";
 
 import config from "../../config.json";
@@ -71,6 +71,7 @@ export class ListeningHost extends ListeningPeer {
         }
 
         this.state.applyChange((state: ListeningState) => {
+            state.listeners = [];
             state.listeners.push(this.peer.id);
         });
 
@@ -155,6 +156,13 @@ export class ListeningListener extends ListeningPeer {
         this.hostConnection.on("close", this.connectionClosed);
         this.hostConnection.on("error", this.connectionError);
         this.hostConnection.on("data", this.applySyncMessage);
+
+        setTimeout(() => {
+            if (this.connectionState === ConnectionState.CONNECTING) {
+                this.connectionState = ConnectionState.ERROR;
+                this.emit("connectionchange");
+            }
+        }, 5000);
     }
 
     private connectionOpen = (): void => {
@@ -168,6 +176,9 @@ export class ListeningListener extends ListeningPeer {
         logger.log(`Connection to host ${this.hostId} closed`);
 
         this.connectionState = ConnectionState.CLOSED;
+
+        window.session.transformToHost();
+
         this.emit("connectionchange");
     }
 
