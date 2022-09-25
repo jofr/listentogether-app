@@ -10,7 +10,7 @@ import "@material/mwc-circular-progress-four-color";
 import { ModalDialog } from "./modal_dialog";
 import { ListeningSession } from "../../listening/session";
 import { ListeningListener, ConnectionState } from "../../listening/peer";
-import { AudioInfo, CoverInfo } from "../../audio_info/extract";
+import { AudioInfo } from "../../metadata/types";
 
 const defaultCoverData = `<svg xmlns="http://www.w3.org/2000/svg" height="48" width="48"><path d="M19.65 42Q16.5 42 14.325 39.825Q12.15 37.65 12.15 34.5Q12.15 31.35 14.325 29.175Q16.5 27 19.65 27Q21.05 27 22.175 27.4Q23.3 27.8 24.15 28.5V6H35.85V12.75H27.15V34.5Q27.15 37.65 24.975 39.825Q22.8 42 19.65 42Z"/></svg>`;
 const defaultCoverObjectUrl = URL.createObjectURL(new Blob([defaultCoverData], { type: "image/svg+xml" }));
@@ -81,9 +81,9 @@ export class JoinListeningDialog extends ModalDialog {
             <mwc-list>
                 ${this.possibleSession.playlist.map(audio => html`
                     <mwc-list-item twoline graphic="medium">
-                        <span>${until(window.audioInfoCache.getProperty(audio.uri, "title"), html`<loading-placeholder characters="15"></loading-placeholder>`)}</span>
-                        <span slot="secondary">${until(window.audioInfoCache.getProperty(audio.uri, "album"), html`<loading-placeholder characters="10"></loading-placeholder>`)}</span>
-                        <img slot="graphic" src="${until(window.audioInfoCache.getProperty(audio.uri, "cover").then((cover: CoverInfo) => cover.objectUrl), defaultCoverObjectUrl)}" />
+                        <span>${until(window.metadataCache.getAudioInfo(audio.uri).then(audio => audio.title), html`<loading-placeholder characters="15"></loading-placeholder>`)}</span>
+                        <span slot="secondary">${until(window.metadataCache.getAudioInfo(audio.uri).then(audio => audio.album), html`<loading-placeholder characters="10"></loading-placeholder>`)}</span>
+                        <img slot="graphic" src="${until(window.metadataCache.getAudioInfo(audio.uri).then(audio => audio.cover.url), defaultCoverObjectUrl)}" />
                     </mwc-list-item>
                 `)}
             </mwc-list>
