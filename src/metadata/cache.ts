@@ -22,7 +22,7 @@ class MetadataCache {
     private podcastInfoCache: Map<string, Promise<PodcastInfo | null>> = new Map<string, Promise<PodcastInfo | null>>();
 
     private async downloadPodcastInfo(uri: string): Promise<PodcastInfo | null> {
-        const [error, response] = await catchError(fetch(`http://${config.peerServer}:${config.podcastIndexPort}/podcasts/byurl/?url=${uri}`));
+        const [error, response] = await catchError(fetch(`${config.podcastServiceUrl}/podcasts/byurl/?url=${uri}`));
         if (!error && (response as Response).ok) {
             const result = await (response as Response).json();
             if (result.feed) {
@@ -43,7 +43,7 @@ class MetadataCache {
         let uris = [];
         
         const podcastTitle = await this.getPodcastInfo(uri).then(info => info?.title ? info.title : "");
-        const [error, response] = await catchError(fetch(`http://${config.peerServer}:${config.podcastIndexPort}/episodes/byurl/?url=${uri}&max=${max}`));
+        const [error, response] = await catchError(fetch(`${config.podcastServiceUrl}/episodes/byurl/?url=${uri}&max=${max}`));
         if (!error && (response as Response).ok) {
             const result = await (response as Response).json();
             if (result && result.count > 0 && result.items) {
@@ -98,7 +98,7 @@ class MetadataCache {
     async searchPodcasts(query: string): Promise<PodcastInfo[]> {
         let podcasts = [];
 
-        const [error, response] = await catchError(fetch(`http://${config.peerServer}:${config.podcastIndexPort}/podcasts/search/?query=${query}`));
+        const [error, response] = await catchError(fetch(`${config.podcastServiceUrl}/podcasts/search/?query=${query}`));
         if (!error && (response as Response).ok) {
             const result = await (response as Response).json();
             if (result.count > 0) {
