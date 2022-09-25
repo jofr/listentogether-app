@@ -6,6 +6,7 @@ export type PlaybackState = {
     currentAudio: AudioUri | null,
     referenceTime: number,
     audioTime: number,
+    playbackRate: number,
     paused: boolean
 }
 
