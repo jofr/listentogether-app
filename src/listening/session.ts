@@ -116,7 +116,9 @@ export class ListeningSession extends Events {
     }
 
     removeAudio(audio: AudioUri) {
-        console.log("removeAudio");
+        this.internalState.applyChange((state: ListeningState) => {
+            state.playlist.splice(state.playlist.indexOf(audio), 1);
+        });
     }
 
     moveAudio(url: string, deltaIndex: number) {
