@@ -43,6 +43,7 @@ class MetadataCache {
         let uris = [];
         
         const podcastTitle = await this.getPodcastInfo(uri).then(info => info?.title ? info.title : "");
+        const podcastArtist = await this.getPodcastInfo(uri).then(info => info?.title ? info.title : "");
         const [error, response] = await catchError(fetch(`${config.podcastServiceUrl}/episodes/byurl/?url=${uri}&max=${max}`));
         if (!error && (response as Response).ok) {
             const result = await (response as Response).json();
@@ -53,7 +54,7 @@ class MetadataCache {
                     this.audioInfoCache.set(episode.enclosureUrl, new Promise(resolve => resolve({
                         uri: episode.enclosureUrl,
                         title: episode.title,
-                        artist: episode.author,
+                        artist: podcastArtist,
                         album: podcastTitle,
                         duration: episode.duration,
                         cover: {
