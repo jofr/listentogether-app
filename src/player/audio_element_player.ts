@@ -6,6 +6,7 @@ import { logger } from "../util/logger";
 export class AudioElementPlayer extends Events implements AudioPlayer {
     private state: SyncedListeningState = null;
     private audioElement: HTMLAudioElement;
+    private audioDurationFromMetadata: number;
     private silenceSrc: string = `${window.location.origin}${window.location.pathname}silence.mp3`;
 
     constructor() {
@@ -35,6 +36,11 @@ export class AudioElementPlayer extends Events implements AudioPlayer {
         const newSrc = this.state?.playback.currentAudio;
         if (this.audioElement.src !== newSrc && newSrc !== null) {
             this.audioElement.src = newSrc;
+            (async () => {
+                this.audioDurationFromMetadata = NaN;
+                this.audioDurationFromMetadata = await window.metadataCache.getAudioInfo(newSrc).then(info => info.duration);
+                this.emit("durationchange");
+            })();
             if (!this.state.playback.paused) {
                 this.audioElement.play();
             }
@@ -78,7 +84,7 @@ export class AudioElementPlayer extends Events implements AudioPlayer {
     }
 
     get duration(): number {
-        return this.audioElement.duration;
+        return Number.isNaN(this.audioElement.duration) ? this.audioDurationFromMetadata : this.audioElement.duration;
     }
 
     get currentTime(): number {
