@@ -107,6 +107,9 @@ export class ListenTogetherApp extends LitElement {
     @query("#app-pages", true)
     private appPagesElement: HTMLElement;
 
+    @query("session-controls")
+    private sessionControlsElement: HTMLElement;
+
     @query("app-menu")
     private appMenuElement: AppMenu;
 
@@ -137,11 +140,13 @@ export class ListenTogetherApp extends LitElement {
 
             if (scrollPercentage > 0.95) {
                 document.body.setAttribute("minified-controls", "true");
+                (this.sessionControlsElement as any).minified = true;
                 this.currentPage = this.pages[1];
                 this.currentPageTitle = this.pages[1].title;
                 this.topAppBarClass = this.pages[1].topAppBar;
             } else {
                 document.body.setAttribute("minified-controls", "false");
+                (this.sessionControlsElement as any).minified = false;
                 this.currentPage = this.pages[0];
                 this.currentPageTitle = this.pages[0].title;
                 this.topAppBarClass = this.pages[0].topAppBar;

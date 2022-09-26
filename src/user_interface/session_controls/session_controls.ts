@@ -269,7 +269,11 @@ export class SessionControls extends LitElement {
             position: absolute;
             left: var(--content-padding);
             bottom: var(--icon-padding);
-            width: calc(100vw - var(--icon-padding) - var(--content-padding));
+            width: calc((100vw - var(--icon-padding) - var(--content-padding)));
+        }
+
+        peer-controls[minified] {
+            width: 50%;
         }
 
         mwc-icon-button#add {
@@ -286,6 +290,9 @@ export class SessionControls extends LitElement {
             box-shadow: var(--mdc-fab-box-shadow, 0px 3px 5px -1px rgba(0, 0, 0, 0.2), 0px 6px 10px 0px rgba(0, 0, 0, 0.14), 0px 1px 18px 0px rgba(0, 0, 0, 0.12));
         }
     `;
+
+    @state()
+    minified: boolean = false;
 
     private sessionController = new SessionController(this, { subscribe: [] });
 
@@ -305,7 +312,7 @@ export class SessionControls extends LitElement {
         return html`
             <player-timeline></player-timeline>
             <player-controls></player-controls>
-            <peer-controls></peer-controls>
+            <peer-controls ?minified=${this.minified}></peer-controls>
             ${this.renderFab()}
         `
     }
