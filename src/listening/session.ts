@@ -91,7 +91,7 @@ export class ListeningSession extends Events {
         if (audioInfo.cover) {
             mediaMetadata.artwork = [
                 {
-                    src: audioInfo.cover.objectUrl,
+                    src: audioInfo.cover.url || audioInfo.cover.objectUrl || audioInfo.cover.dataUrl,
                     sizes: "256x256",
                     type: "image/png"
                 }
