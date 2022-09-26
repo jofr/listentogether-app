@@ -4,6 +4,7 @@ import { Events } from "../util/events";
 import { ListenerId, ListeningState } from "./state";
 import { SyncedListeningState, SyncMessage } from "./synced_state";
 import { logger } from "../util/logger";
+import { AudioInfo } from "../metadata/types";
 
 import config from "../../config.json";
 
@@ -91,6 +92,7 @@ export class ListeningHost extends ListeningPeer {
         connection.on("open", () => this.connectionOpen(connection));
         connection.on("close", () => this.connectionClosed(connection));
         connection.on("error", (error: any) => this.connectionError(connection, error));
+        connection.on("data", (message: any) => this.applySyncMessage(connection, message));
     }
 
     private connectionOpen = (connection: DataConnection): void => {
@@ -125,6 +127,18 @@ export class ListeningHost extends ListeningPeer {
         logger.log(`Error in connection to listener ${connection.peer}:`, error);
     }
 
+    private applySyncMessage = async (connection: DataConnection, message: any) => {
+        logger.log("Received sync message:", message);
+
+        if (message.type == "audioinforequest") {
+            const audioInfo = await window.metadataCache.getAudioInfo(message.data.uri);
+            connection.send({
+                type: "audioinfo",
+                data: audioInfo
+            });
+        }
+    }
+
     private sendSyncToListeners = (type: string, listeners?: ListenerId[]) => {
         const listenerConnections = listeners === undefined
                                   ? this.listenerConnections
@@ -148,6 +162,7 @@ export class ListeningHost extends ListeningPeer {
 
 export class ListeningListener extends ListeningPeer {
     private hostConnection: DataConnection;
+    private audioInfoRequests: Map<string, Function> = new Map<string, Function>();
     connectionState: ConnectionState = ConnectionState.CONNECTING;
 
     constructor (readonly hostId: string, state: SyncedListeningState) {
@@ -198,7 +213,31 @@ export class ListeningListener extends ListeningPeer {
 
         if (["playback", "playlist", "listeners"].includes(message.type)) {
             this.state.applySyncMessage(message as SyncMessage);
+        } else if (message.type == "audioinfo") {
+            if (this.audioInfoRequests.has(message.data.uri)) {
+                this.audioInfoRequests.get(message.data.uri)(message.data as AudioInfo);
+            }
         }
+    }
+
+    requestAudioInfoFromHost(uri: string): Promise<AudioInfo | null> {
+        let resolveAudioInfo: (value: AudioInfo | PromiseLike<AudioInfo>) => void;
+        const audioInfoPromise = new Promise<AudioInfo | null>((resolve, reject) => resolveAudioInfo = resolve);
+        this.audioInfoRequests.set(uri, resolveAudioInfo);
+
+        if (this.hostConnection.open) {
+            this.audioInfoRequests.set(uri, resolveAudioInfo);
+            this.hostConnection.send({
+                type: "audioinforequest",
+                data: {
+                    uri: uri
+                }
+            });
+        } else {
+            resolveAudioInfo(null);
+        }
+
+        return audioInfoPromise;
     }
 
     get invitationUrl(): string {
