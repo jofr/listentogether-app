@@ -186,6 +186,7 @@ export class PeerControls extends LitElement {
             --mdc-icon-size: 1.5rem;
             --mdc-icon-button-size: 3.0rem;
             color: var(--on-surface-variant);
+            overflow: hidden;
         }
 
         mwc-icon-button#settings {
