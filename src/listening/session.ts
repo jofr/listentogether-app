@@ -7,6 +7,7 @@ import { AudioUri, ListeningState, PlaybackState } from "./state";
 import { AudioInfo } from "../metadata/types";
 import { AudioPlayer } from "../player/audio_player";
 import { logger } from "../util/logger";
+import { state } from "lit/decorators";
 
 export type ListenerInfo = {
     id: string,
@@ -100,6 +101,11 @@ export class ListeningSession extends Events {
     }
 
     addAudio(audio: AudioUri) {
+        if (this.internalState.playlist.includes(audio)) {
+            logger.log(`Ignored request to add audio which is already in playlist: ${audio}`);
+            return;
+        }
+
         this.internalState.applyChange((state: ListeningState) => {
             state.playlist.push(audio);
         });
