@@ -6,6 +6,7 @@ import { logger } from "../util/logger";
 export class AudioElementPlayer extends Events implements AudioPlayer {
     private state: SyncedListeningState = null;
     private audioElement: HTMLAudioElement;
+    buffering: boolean = false;
     private audioDurationFromMetadata: number;
     private silenceSrc: string = `${window.location.origin}${window.location.pathname}silence.mp3`;
 
@@ -17,6 +18,26 @@ export class AudioElementPlayer extends Events implements AudioPlayer {
 
         for (const event of ["timeupdate", "pause", "play", "durationchange", "seeked", "ended"]) {
             this.audioElement.addEventListener(event, () => this.emit(event));
+        }
+
+        for (const event of ["waiting", "stalled"]) {
+            this.audioElement.addEventListener(event, () => {
+                if (!this.buffering) {
+                    console.log("buffering")
+                    this.buffering = true;
+                    this.emit("buffering");
+                }
+            });
+        }
+
+        for (const event of ["canplay", "canplaythrough"]) {
+            this.audioElement.addEventListener(event, () => {
+                if (this.buffering) {
+                    console.log("not buffering")
+                    this.buffering = false;
+                    this.emit("canplay");
+                }
+            });
         }
     }
 

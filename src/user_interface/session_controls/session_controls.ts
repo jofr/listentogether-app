@@ -1,5 +1,6 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, state } from "lit/decorators";
+import { classMap } from "lit/directives/class-map";
 import { Share } from '@capacitor/share';
 
 import { ListeningHost, ListeningListener } from "../../listening/peer";
@@ -90,6 +91,7 @@ export class PlayerControls extends LitElement {
         }
 
         mwc-icon-button.play {
+            --mdc-ripple-color: transparent;
             --mdc-icon-size: calc(2.5rem + var(--maxified) * 1.5rem);
             margin: 0px calc(var(--maxified) * 0.75rem);
         }
@@ -100,9 +102,22 @@ export class PlayerControls extends LitElement {
             transform: translateX(calc(-0.5 * var(--minified) * 3.0rem));
             overflow: hidden;
         }
+
+        mwc-icon-button.rotating {
+            animation: rotation 2s infinite linear;
+        }
+
+        @keyframes rotation {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
     `;
 
-    private sessionController = new SessionController(this, { subscribe: ["playlist"], listen: ["play", "pause", "audiochange"] });
+    private sessionController = new SessionController(this, { subscribe: ["playlist"], listen: ["play", "pause", "audiochange", "buffering", "canplay"] });
 
     render() {
         const session = this.sessionController.session;
@@ -111,12 +126,13 @@ export class PlayerControls extends LitElement {
         const playlistLength = (session && session.playlist) ? session.playlist.length : 0;
         const prevDisabled = currentAudioIndex === 0 ? true : false;
         const nextDisabled = currentAudioIndex === (playlistLength - 1) ? true : false;
+        const buffering = (session && session.player) ? session.player.buffering : false;
 
         return html`
             <div id="controls">
                 <mwc-icon-button ?disabled=${disabled || prevDisabled} @click=${() => session.skipPrevious()} icon="skip_previous"></mwc-icon-button>
                 <mwc-icon-button ?disabled=${disabled} @click=${() => session.replay()} icon="replay_30" class="only-maxified"></mwc-icon-button>
-                <mwc-icon-button ?disabled=${disabled} class="play" @click=${() => session.togglePlay()} icon="${!session || session.playback.paused ? "play_circle" : "pause_circle"}"></mwc-icon-button>
+                <mwc-icon-button ?disabled=${disabled} class="play ${classMap({"rotating": session && !session.playback.paused && buffering})}" @click=${() => session.togglePlay()} icon="${!session || session.playback.paused ? "play_circle" : (buffering ? "cached" : "pause_circle")}"></mwc-icon-button>
                 <mwc-icon-button ?disabled=${disabled} @click=${() => session.forward()} icon="forward_30" class="only-maxified"></mwc-icon-button>
                 <mwc-icon-button ?disabled=${disabled || nextDisabled} @click=${() => session.skipNext()} icon="skip_next"></mwc-icon-button>
             </div>

@@ -7,4 +7,5 @@ export interface AudioPlayer extends Events {
     currentTime: number;
     paused: boolean;
     playbackRate: number;
+    buffering: boolean;
 }

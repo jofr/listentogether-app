@@ -180,7 +180,7 @@ export class ListeningSession extends Events {
     }
 
     on(eventName: string | string[], eventHandler: (...args: any[]) => void) {
-        const playerEvents = ["audiochange", "timeupdate", "pause", "play", "durationchange"];
+        const playerEvents = ["audiochange", "timeupdate", "pause", "play", "durationchange", "buffering", "canplay"];
 
         const onSelfOrPlayer = (eventName: string, eventHandler: (...args: any[]) => void) => {
             if (playerEvents.includes(eventName)) {
