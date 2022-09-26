@@ -70,21 +70,14 @@ class MetadataCache {
     }
 
     private async syncOrExtractAudioInfo(uri: string): Promise<AudioInfo | null> {
-        console.log("syncOrExtractAudioInfo", uri)
         const extractedInfo = extractAudioInfoFromUrl(uri);
         const peer = document.querySelector("join-listening-dialog").session.peer || window.session.peer;
         const syncedInfo = (peer as ListeningListener).requestAudioInfoFromHost(uri);
 
-        await Promise.allSettled([extractedInfo, syncedInfo]);
-        if (syncedInfo !== null) {
-            return syncedInfo;
-        } else {
-            return extractedInfo;
-        }
+        return await Promise.race([extractedInfo, syncedInfo]);
     }
 
     getAudioInfo(uri: string): Promise<AudioInfo | null> {
-        console.log("getAudioInfo", uri)
         if (!this.audioInfoCache.has(uri)) {
             if (window.session.peer instanceof ListeningListener || document.querySelector("join-listening-dialog").session) {
                 this.audioInfoCache.set(uri, this.syncOrExtractAudioInfo(uri));
