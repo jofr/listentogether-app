@@ -98,13 +98,11 @@ export class PlayerControls extends LitElement {
             opacity: calc((var(--maxified) - 0.5) * 2.0);
             width: calc(var(--maxified) * 3.0rem);
             transform: translateX(calc(-0.5 * var(--minified) * 3.0rem));
+            overflow: hidden;
         }
     `;
 
     private sessionController = new SessionController(this, { subscribe: ["playlist"], listen: ["play", "pause", "audiochange"] });
-
-    @state()
-    minified = false;
 
     render() {
         const session = this.sessionController.session;
@@ -117,9 +115,9 @@ export class PlayerControls extends LitElement {
         return html`
             <div id="controls">
                 <mwc-icon-button ?disabled=${disabled || prevDisabled} @click=${() => session.skipPrevious()} icon="skip_previous"></mwc-icon-button>
-                <mwc-icon-button ?disabled=${disabled || this.minified} @click=${() => session.replay()} icon="replay_30" class="only-maxified"></mwc-icon-button>
+                <mwc-icon-button ?disabled=${disabled} @click=${() => session.replay()} icon="replay_30" class="only-maxified"></mwc-icon-button>
                 <mwc-icon-button ?disabled=${disabled} class="play" @click=${() => session.togglePlay()} icon="${!session || session.playback.paused ? "play_circle" : "pause_circle"}"></mwc-icon-button>
-                <mwc-icon-button ?disabled=${disabled || this.minified} @click=${() => session.forward()} icon="forward_30" class="only-maxified"></mwc-icon-button>
+                <mwc-icon-button ?disabled=${disabled} @click=${() => session.forward()} icon="forward_30" class="only-maxified"></mwc-icon-button>
                 <mwc-icon-button ?disabled=${disabled || nextDisabled} @click=${() => session.skipNext()} icon="skip_next"></mwc-icon-button>
             </div>
         `
@@ -135,6 +133,7 @@ export class PeerControls extends LitElement {
             flex-direction: row;
             justify-content: space-between;
             align-items: center;
+            z-index: 1;
         }
 
         #listeners {
@@ -198,9 +197,6 @@ export class PeerControls extends LitElement {
 
     private sessionController = new SessionController(this, { subscribe: ["listeners"] });
 
-    @state()
-    minified = false;
-
     inviteListener() {
         Share.canShare().then((canShare) => {
             if (canShare.value === true) {
@@ -231,7 +227,7 @@ export class PeerControls extends LitElement {
                     </div>
                 </div>
             </div>
-            <mwc-icon-button id="settings" ?disabled=${this.minified} unelevated icon="settings" @click=${() => window.app.showDialog("share-settings-dialog")}></mwc-icon-button>
+            <mwc-icon-button id="settings" unelevated icon="settings" @click=${() => window.app.showDialog("share-settings-dialog")}></mwc-icon-button>
         `
     }
 }
