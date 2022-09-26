@@ -4,9 +4,6 @@ build:
   script:
     - npm install
     - npm run build -- --public-url "/app"
-  cache:
-    paths:
-      - node_modules/
   artifacts:
     paths:
       - dist
