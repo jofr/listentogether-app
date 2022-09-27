@@ -71,7 +71,7 @@ class MetadataCache {
 
     private async syncOrExtractAudioInfo(uri: string): Promise<AudioInfo | null> {
         const extractedInfo = extractAudioInfoFromUrl(uri);
-        const peer = document.querySelector("join-listening-dialog").session.peer || window.session.peer;
+        const peer = document.querySelector("join-listening-dialog").session?.peer || window.session.peer;
         const syncedInfo = (peer as ListeningListener).requestAudioInfoFromHost(uri);
 
         return await Promise.race([extractedInfo, syncedInfo]);
