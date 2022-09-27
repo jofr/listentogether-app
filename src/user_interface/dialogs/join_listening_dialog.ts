@@ -26,6 +26,21 @@ export class JoinListeningDialog extends ModalDialog {
     static styles = [
         ModalDialog.styles,
         css`
+            mwc-list {
+                --mdc-theme-on-surface: var(--on-surface);
+                --mdc-theme-text-primary-on-background: var(--on-surface);
+                --mdc-theme-text-secondary-on-background: var(--on-surface-variant);
+                --mdc-theme-text-icon-on-background: var(--on-surface-variant);
+                --mdc-theme-text-hint-on-background: var(--on-surface-variant);
+                --mdc-checkbox-unchecked-color: var(--on-surface-variant);
+                --mdc-checkbox-checked-color: var(--secondary);
+                --mdc-checkbox-ink-color: var(--on-secondary);
+
+                overflow-y: scroll;
+                margin-left: -16px;
+                margin-right: -16px;
+            }
+            
             mwc-circular-progress-four-color {
                 margin: 0px auto;
             }
