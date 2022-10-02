@@ -4,7 +4,7 @@
 
 ## What is this?
 
-ListenTogether is a progressive web app which can be used to listen to podcasts or other audio files together – whether you are miles apart or sitting next to each other.
+ListenTogether is a progressive web app which can be used to listen to podcasts or other audio files together – whether you are miles apart or sitting next to each other. Read more about what it does, how it works and how it handles your data below or [try it out right now in your browser](https://listentogether.gitlab.io/app/).
 
 Your playlist and listening state will be synchronized with everyone who is joining your listening. Just invite people by sharing the invitation link with them. Because ListenTogether is a progressive web app they do not need to have anything installed. They can just open the link in their browser and it works (as long as they have an internet connection and the browser supports WebRTC which is used for the communication to synchronize playback).
 
