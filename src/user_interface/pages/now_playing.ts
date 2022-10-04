@@ -48,6 +48,7 @@ export class NowPlaying extends AppPage {
                 text-align: center;
                 color: var(--mdc-theme-on-primary);
                 color: #b0e7ae;
+                cursor: pointer;
             }
 
             #information {

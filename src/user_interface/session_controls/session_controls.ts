@@ -181,6 +181,7 @@ export class PeerControls extends LitElement {
             color: var(--primary);
             background-color: var(--surface);
             background-clip: padding-box;
+            cursor: pointer;
         }
 
         #invite span {
