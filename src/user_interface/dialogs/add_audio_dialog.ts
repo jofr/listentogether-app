@@ -64,8 +64,15 @@ export class AddAudioDialog extends ModalDialog {
     @state()
     private possibleAudios: AudioInfo[] = [];
 
+    private numberOfAudios: number = 0;
+    private moreAudiosPossible: boolean = false;
+    private podcastUrl: string;
+
     @state()
     private processing: boolean = false;
+
+    @state()
+    private loadingMore: boolean = false;
 
     private autoSelectAllAudios: boolean = true;
 
@@ -78,8 +85,19 @@ export class AddAudioDialog extends ModalDialog {
 
         this.autoSelectAllAudios = true;
         this.possibleAudios = await Promise.all(urls.map(url => window.metadataCache.getAudioInfo(url))) as AudioInfo[];
+        this.moreAudiosPossible = false;
 
         this.processing = false;
+    }
+
+    async loadMorePossibleAudiosFromPodcast() {
+        this.possibleAudios = await window.metadataCache.getPodcastEpisodes(this.podcastUrl, 0, this.numberOfAudios + 20);
+        if (this.possibleAudios.length == this.numberOfAudios + 20) {
+            this.moreAudiosPossible = true;
+        } else {
+            this.moreAudiosPossible = false;
+        }
+        this.numberOfAudios = this.possibleAudios.length;
     }
 
     async getPossibleAudiosFromPodcast(url: string) {
@@ -87,10 +105,28 @@ export class AddAudioDialog extends ModalDialog {
 
         this.processing = true;
 
+        this.podcastUrl = url;
         this.autoSelectAllAudios = false;
-        this.possibleAudios = await window.metadataCache.getPodcastEpisodes(url, 0, 20);
+        this.numberOfAudios = 0;
+        await this.loadMorePossibleAudiosFromPodcast();
+
 
         this.processing = false;
+    }
+
+    async getMorePossibleAudios(event: Event) {
+        if (this.moreAudiosPossible === false || this.loadingMore) {
+            return;
+        }
+
+        const element = event.target as HTMLElement;
+        if (element.scrollTop > (element.scrollHeight - element.clientHeight - 25)) {
+            this.loadingMore = true;
+
+            await this.loadMorePossibleAudiosFromPodcast();
+
+            this.loadingMore = false;
+        }
     }
 
     private onInput(event: Event) {
@@ -127,6 +163,8 @@ export class AddAudioDialog extends ModalDialog {
 
         this.possiblePodcasts = [];
         this.possibleAudios = [];
+        this.numberOfAudios = 0;
+        this.moreAudiosPossible = false;
     }
 
     renderContent() {
@@ -136,7 +174,7 @@ export class AddAudioDialog extends ModalDialog {
             `
         } else if (this.possibleAudios.length > 0) {
             return html`
-                <mwc-list multi>
+                <mwc-list multi @scroll=${this.getMorePossibleAudios}>
                     ${repeat(this.possibleAudios, audio => audio.uri, audio => html`
                         <mwc-check-list-item ?selected=${this.autoSelectAllAudios} twoline graphic="medium">
                             <span>${audio.title}</span>
@@ -145,6 +183,7 @@ export class AddAudioDialog extends ModalDialog {
                         </mwc-check-list-item>
                     `)}
                 </mwc-list>
+                <mwc-linear-progress indeterminate ?hidden=${!this.loadingMore}></mwc-linear-progress>
             `;
         } else {
             return html`
