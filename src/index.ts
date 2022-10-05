@@ -6,30 +6,6 @@ import { AudioElementPlayer } from "./player/audio_element_player";
 import { ListeningSession } from "./listening/session";
 import { AudioPlayer } from "./player/audio_player";
 import "./metadata/cache";
-import "./user_interface/app";
-
-import "@material/mwc-button";
-import "@material/mwc-textfield";
-import "@material/mwc-list";
-import "@material/mwc-list/mwc-check-list-item";
-import "@material/mwc-circular-progress-four-color";
-import "@material/mwc-ripple";
-import "@material/mwc-slider";
-import "@material/mwc-icon-button";
-import "@material/mwc-fab";
-import "@material/mwc-snackbar/mwc-snackbar";
-import '@material/mwc-menu/mwc-menu';
-
-import "./user_interface/elements/listener_avatar";
-import "./user_interface/elements/loading_placeholder";
-import "./user_interface/dialogs/add_audio_dialog";
-import "./user_interface/dialogs/join_listening_dialog";
-import "./user_interface/dialogs/invite_listener_dialog";
-import "./user_interface/dialogs/share_settings_dialog";
-import "./user_interface/pages/now_playing";
-import "./user_interface/pages/playlist";
-import "./user_interface/session_controls/session_controls";
-import "./user_interface/menu";
  
 declare global { 
     interface Window {
