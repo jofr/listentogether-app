@@ -1,6 +1,6 @@
 import { html, css } from "lit";
 import { repeat } from "lit/directives/repeat";
-import { customElement, state } from "lit/decorators";
+import { customElement, eventOptions, state } from "lit/decorators";
 
 import { ModalDialog } from "./modal_dialog";
 import { AudioInfo, PodcastInfo } from "../../metadata/types";
@@ -114,6 +114,7 @@ export class AddAudioDialog extends ModalDialog {
         this.processing = false;
     }
 
+    @eventOptions({passive: true})
     async getMorePossibleAudios(event: Event) {
         if (this.moreAudiosPossible === false || this.loadingMore) {
             return;
