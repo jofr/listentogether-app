@@ -5,16 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#1a6c2b" />
     <title>ListenTogether – listen to podcasts or songs together</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@200;400;600&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css?family=Material+Icons&display=block" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,300,1,0" rel="stylesheet" />
     <link rel="icon" href="../res/logo/app_logo_192.png" type="image/png" />
     <link rel="apple-touch-icon" href="../res/logo/app_logo_192.png" />
     <script src="index.ts" type="module"></script>
     <link rel="manifest" href="manifest.webmanifest" />
     <style>
+      @font-face {
+        font-family: "Material Symbols Outlined";
+        font-style: normal;
+        font-weight: 300;
+        font-display: block;   
+        src: url(../res/fonts/material-symbols-outlined-subset.woff2) format("woff2");
+      }
+
+      @font-face {
+        font-family: "Public Sans";
+        font-style: normal;
+        font-weight: 300;
+        font-display: swap;
+        src: url(../res/fonts/public-sans.woff2) format("woff2");
+      }
+
       * {
         box-sizing: border-box;
       }
@@ -25,6 +36,10 @@
       }
 
       body {
+        --mdc-icon-font: "Material Symbols Outlined";
+        --mdc-typography-font-family: "Public Sans";
+        --mdc-typography-button-font-family: "Public Sans";
+
         --primary: #1a6c2b;
         --on-primary: #ffffff;
         --primary-container: #a8f6a8;
