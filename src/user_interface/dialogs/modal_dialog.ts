@@ -87,7 +87,7 @@ export class ModalDialog extends LitElement {
         .dismiss {
             width: 100%;
             text-align: center;
-            font-family: 'Material Icons';
+            font-family: 'Material Symbols Outlined';
             font-size: 1.7rem;
             align-self: center;
         }
