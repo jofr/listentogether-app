@@ -1,5 +1,3 @@
-import Peer, { DataConnection } from "peerjs";
-
 import { Events } from "../util/events";
 import { ListenerId, ListeningState } from "./state";
 import { SyncedListeningState, SyncMessage } from "./synced_state";
@@ -15,139 +13,172 @@ export enum ConnectionState {
 type PeerId = string;
 
 class PeerConnection extends Events {
-    private connection: RTCPeerConnection;
-    private dataChannel: RTCDataChannel | null;
+    readonly localId: PeerId;
+    readonly remoteId: PeerId;
+    protected signalingConnection: SignalingConnection;
+    protected connection: RTCPeerConnection;
+    protected dataChannel: RTCDataChannel | null;
+    protected polite: boolean;
+    private makingOffer: boolean = false;
+    private ignoreOffer: boolean = false;
+    private isSettingRemoteAnswerPending: boolean = false;
 
-    constructor(readonly peerId: PeerId) {
+    constructor(remoteId: PeerId, signalingConnection: SignalingConnection) {
         super();
 
+        this.localId = signalingConnection.peerId;
+        this.remoteId = remoteId;
+
         this.connection = new RTCPeerConnection();
-        this.connection.addEventListener("icecandidate", (event: RTCPeerConnectionIceEvent) => this.emit("icecandidate", event.candidate));
-        this.connection.addEventListener("connectionstatechange", (event: Event) => {
-            if (this.connection.connectionState === "connected") {
-                this.emit("connected");
-            }
-        })
-        //this.connection.addEventListener("negotiationneeded")
+        this.connection.addEventListener("negotiationneeded", this.negotiationNeeded);
+        this.connection.addEventListener("icecandidate", this.iceCandidate);
+        this.connection.addEventListener("connectionstatechange", this.connectionStateChange);
+
+        this.signalingConnection = signalingConnection;
+        this.signalingConnection.on(`messagefrom:${this.remoteId}`, this.signalingMessage);
     }
 
-    dataChannelSetup() {
+    private negotiationNeeded = async () => {
+        this.makingOffer = true;
+
+        await this.connection.setLocalDescription();
+        this.signalingConnection.sendMessage({
+            type: "description",
+            from: this.localId,
+            to: this.remoteId,
+            data: this.connection.localDescription
+        });
+
+        this.makingOffer = false;
+    }
+
+    private iceCandidate = (event: RTCPeerConnectionIceEvent) => {
+        this.signalingConnection.sendMessage({
+            type: "icecandidate",
+            from: this.localId,
+            to: this.remoteId,
+            data: event.candidate
+        });
+    }
+
+    private connectionStateChange = async () => {
+        if (this.connection.connectionState === "connected") {
+            this.emit("connected");
+        }
+    }
+
+    private signalingMessage = async (message: any) => {
+        if (message.type === "description") {
+            const readyForOffer = !this.makingOffer && (this.connection.signalingState === "stable" || this.isSettingRemoteAnswerPending);
+            const offerCollision = message.data.type === "offer" && !readyForOffer;
+
+            this.ignoreOffer = !this.polite && offerCollision;
+            if (this.ignoreOffer) {
+                return;
+            }
+
+            this.isSettingRemoteAnswerPending = message.data.type === "answer";
+            await this.connection.setRemoteDescription(message.data);
+            this.isSettingRemoteAnswerPending = false;
+
+            if (message.data.type === "offer") {
+                await this.connection.setLocalDescription();
+                this.signalingConnection.sendMessage({
+                    type: "description",
+                    from: this.localId,
+                    to: this.remoteId,
+                    data: this.connection.localDescription
+                });
+            }
+        } else if (message.type === "icecandidate") {
+            this.connection.addIceCandidate(message.data);
+        }
+    }
+
+    protected dataChannelSetup() {
         this.dataChannel.addEventListener("open", () => this.emit("open"));
         this.dataChannel.addEventListener("message", (event: MessageEvent) => this.emit("message", JSON.parse(event.data)));
     }
 
-    static Caller(peerId: PeerId) {
-        const peerConnection = new PeerConnection(peerId);
-        peerConnection.dataChannel = peerConnection.connection.createDataChannel("sync");
-        peerConnection.dataChannelSetup();
-
-        return peerConnection;
-    }
-
-    static Callee(peerId: PeerId) {
-        const peerConnection = new PeerConnection(peerId);
-        peerConnection.connection.addEventListener("datachannel", (event: RTCDataChannelEvent) => {
-            peerConnection.dataChannel = event.channel;
-            peerConnection.dataChannelSetup();
-        });
-
-        return peerConnection;
-    }
-
-    async createOffer(): Promise<RTCSessionDescriptionInit> {
-        const offer = await this.connection.createOffer();
-        this.connection.setLocalDescription(offer);
-
-        return offer;
-    }
-
-    async applyOffer(offer: RTCSessionDescriptionInit): Promise<RTCSessionDescriptionInit> {
-        this.connection.setRemoteDescription(offer);
-        const answer = await this.connection.createAnswer();
-        this.connection.setLocalDescription(answer);
-
-        return answer;
-    }
-
-    applyAnswer(answer: RTCSessionDescriptionInit) {
-        this.connection.setRemoteDescription(answer);
-    }
-
-    applyIceCandidate(candidate: RTCIceCandidate) {
-        this.connection.addIceCandidate(candidate);
-    }
-
-    send(message: any) {
+    sendMessage(message: any) {
         this.dataChannel.send(JSON.stringify(message));
+    }
+}
+
+class PeerConnectionCaller extends PeerConnection {
+    constructor(remoteId: PeerId, signalingConnection: SignalingConnection) {
+        super(remoteId, signalingConnection);
+
+        this.polite = false;
+        this.dataChannel = this.connection.createDataChannel("sync");
+        this.dataChannelSetup();
+    }
+}
+
+class PeerConnectionCallee extends PeerConnection {
+    constructor(remoteId: PeerId, signalingConnection: SignalingConnection) {
+        super(remoteId, signalingConnection);
+
+        this.polite = true;
+        this.connection.addEventListener("datachannel", (event: RTCDataChannelEvent) => {
+            this.dataChannel = event.channel;
+            this.dataChannelSetup();
+        });
+    }
+}
+
+class SignalingConnection extends Events {
+    readonly peerId: PeerId;
+    private signalingSocket: WebSocket;
+
+    constructor(peerId: PeerId) {
+        super();
+
+        this.peerId = peerId;
+        this.signalingSocket = new WebSocket(`ws://localhost:5000?version=1&id=${this.peerId}`),
+        this.signalingSocket.addEventListener("message", this.receiveMessage);
+    }
+
+    private receiveMessage = (event: MessageEvent) => {
+        const message = JSON.parse(event.data);
+        const fromId = message.from;
+        if (fromId !== undefined) {
+            this.emit("message", message);
+            this.emit(`messagefrom:${fromId}`, message);
+        }
+    }
+
+    public sendMessage(message: any) {
+        if (this.signalingSocket.readyState === WebSocket.OPEN) {
+            this.signalingSocket.send(JSON.stringify(message));
+        }
     }
 }
 
 class ListeningPeer extends Events {
     readonly id: PeerId = Math.floor(Math.random()*2**18).toString(36).padStart(4,'0');
-    private signalingSocket: WebSocket;
+    private signalingConnection: SignalingConnection;
     protected peerConnections: Map<PeerId, PeerConnection> = new Map<PeerId, PeerConnection>();
     protected state: SyncedListeningState;
 
     constructor(state: SyncedListeningState) {
         super();
 
-        this.signalingSocket = new WebSocket(`ws://localhost:5000?version=1&id=${this.id}`),
-        this.signalingSocket.addEventListener("open", () => this.peerSetup())
-        this.signalingSocket.addEventListener("message", this.receiveSignalingMessage);
+        this.signalingConnection = new SignalingConnection(this.id);
+        this.signalingConnection.on("message", (message: any) => {
+            if (message.type === "description" && !this.peerConnections.has(message.from)) {
+                const peerConnection = new PeerConnectionCallee(message.from, this.signalingConnection);
+                peerConnection.on("connected", () => this.emit("connection", peerConnection.remoteId));
+                this.peerConnections.set(message.from, peerConnection);
+            }
+        });
         this.state = state;
+
+        setTimeout(() => this.peerSetup(), 0);
     }
 
     protected peerSetup() {
-        this.on("connection", (id: PeerId) => console.log(`New connection from ${id}`));
-    }
 
-    private receiveSignalingMessage = async (event: MessageEvent) => {
-        const message = JSON.parse(event.data);
-        const peerId = message.from;
-        if (!peerId) {
-            return;
-        }
-
-        let peerConnection = this.peerConnections.get(peerId);
-
-        if (message.type === "offer") {
-            if (!peerConnection) {
-                peerConnection = PeerConnection.Callee(peerId);
-                peerConnection.on("icecandidate", (candidate: RTCIceCandidate) => this.sendICECandidate(message.from, candidate));
-                peerConnection.on("connected", () => this.emit("connection", peerId));
-                this.peerConnections.set(peerId, peerConnection);
-            }
-
-            const offer = message.data;
-            const answer = await peerConnection.applyOffer(offer);
-            this.sendSignalingMessage({
-                type: "answer",
-                from: this.id,
-                to: peerId,
-                data: answer
-            });
-        } else if (message.type === "answer" && peerConnection) {
-            const answer = message.data;
-            peerConnection.applyAnswer(answer);
-        } else if (message.type === "icecandidate" && peerConnection) {
-            const iceCandidate = message.data;
-            peerConnection.applyIceCandidate(iceCandidate);
-        }
-    }
-
-    private sendSignalingMessage(message: any) {
-        if (this.signalingSocket.readyState === WebSocket.OPEN) {
-            this.signalingSocket.send(JSON.stringify(message));
-        }
-    }
-
-    private sendICECandidate(peerId: string, candidate: RTCIceCandidate) {
-        this.sendSignalingMessage({
-            type: "icecandidate",
-            from: this.id,
-            to: peerId,
-            data: candidate
-        });
     }
 
     protected async connectToPeer(peerId: string) {
@@ -155,28 +186,12 @@ class ListeningPeer extends Events {
             return;
         }
 
-        const peerConnection = PeerConnection.Caller(peerId);
-        peerConnection.on("icecandidate", (candidate: RTCIceCandidate) => this.sendICECandidate(peerId, candidate));
+        const peerConnection = new PeerConnectionCaller(peerId, this.signalingConnection);
         this.peerConnections.set(peerId, peerConnection);
-        const offer = await peerConnection.createOffer();
-        this.sendSignalingMessage({
-            type: "offer",
-            from: this.id,
-            to: peerId,
-            data: offer
-        });
     }
 }
 
-
-window.peerA = new ListeningPeer(new SyncedListeningState());
-window.peerB = new ListeningPeer(new SyncedListeningState());
-
-
-
 export class ListeningHost extends ListeningPeer {
-    private listenerConnections: Set<DataConnection> = new Set<DataConnection>();
-
     protected peerSetup(): void {
         /* Setup is only necessary once, but peerSetup gets called again in case of a dis- and reconnect */
         if (this.state.listeners.includes(this.id)) {
@@ -204,19 +219,19 @@ export class ListeningHost extends ListeningPeer {
     }
 
     private connectionOpen = (connection: PeerConnection): void => {
-        logger.log(`Connection to listener ${connection.peerId} open`);
+        logger.log(`Connection to listener ${connection.remoteId} open`);
 
         this.state.applyChange((state: ListeningState) => {
-            state.listeners.push(connection.peerId);
+            state.listeners.push(connection.remoteId);
         });
 
-        this.sendSyncToListeners("playlist", [connection.peerId]);
-        this.sendSyncToListeners("playback", [connection.peerId]);
+        this.sendSyncToListeners("playlist", [connection.remoteId]);
+        this.sendSyncToListeners("playback", [connection.remoteId]);
     }
 
     private deleteConnection(connection: PeerConnection) {
         this.state.applyChange((state: ListeningState) => {
-            const index = state.listeners.indexOf(connection.peerId);
+            const index = state.listeners.indexOf(connection.remoteId);
             state.listeners.splice(index, 1);
         });
 
@@ -226,13 +241,13 @@ export class ListeningHost extends ListeningPeer {
     private connectionClosed = (connection: PeerConnection): void => {
         //this.deleteConnection(connection); // TODO
 
-        logger.log(`Connection to listener ${connection.peerId} closed`);
+        logger.log(`Connection to listener ${connection.remoteId} closed`);
     }
 
     private connectionError = (connection: PeerConnection, error: any): void => {
         //this.deleteConnection(connection); // TODO
 
-        logger.log(`Error in connection to listener ${connection.peerId}:`, error);
+        logger.log(`Error in connection to listener ${connection.remoteId}:`, error);
     }
 
     private applySyncMessage = async (connection: PeerConnection, message: any) => {
@@ -240,7 +255,7 @@ export class ListeningHost extends ListeningPeer {
 
         if (message.type == "audioinforequest") {
             const audioInfo = await window.metadataCache.getAudioInfo(message.data.uri);
-            connection.send({
+            connection.sendMessage({
                 type: "audioinfo",
                 data: audioInfo
             });
@@ -250,10 +265,10 @@ export class ListeningHost extends ListeningPeer {
     private sendSyncToListeners = (type: string, listeners?: ListenerId[]) => {
         const listenerConnections = listeners === undefined
                                   ? this.peerConnections.values()
-                                  : Array.from(this.peerConnections.values()).filter((connection: PeerConnection) => listeners.includes(connection.peerId));
+                                  : Array.from(this.peerConnections.values()).filter((connection: PeerConnection) => listeners.includes(connection.remoteId));
         for (const connection of listenerConnections) {
             //if (connection.open) {
-                connection.send({
+                connection.sendMessage({
                     type: type,
                     data: this.state[type]
                 });
@@ -337,7 +352,7 @@ export class ListeningListener extends ListeningPeer {
 
         //if (this.hostConnection.open) {
             this.audioInfoRequests.set(uri, resolveAudioInfo);
-            this.hostConnection.send({
+            this.hostConnection.sendMessage({
                 type: "audioinforequest",
                 data: {
                     uri: uri
