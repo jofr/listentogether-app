@@ -12,12 +12,50 @@ export enum ConnectionState {
 
 type PeerId = string;
 
+class SignalingConnection extends Events {
+    readonly peerId: PeerId;
+    private signalingSocket: WebSocket;
+    private messageQueue: string[] = [];
+
+    constructor(peerId: PeerId) {
+        super();
+
+        this.peerId = peerId;
+        this.signalingSocket = new WebSocket(`wss://${config.signalingHost}:${config.signalingPort}?version=1&id=${this.peerId}`),
+        this.signalingSocket.addEventListener("open", () => {
+            while (this.messageQueue.length > 0) {
+                const message = this.messageQueue.shift();
+                this.signalingSocket.send(message);
+            }
+        });
+        this.signalingSocket.addEventListener("message", this.receiveMessage);
+    }
+
+    private receiveMessage = (event: MessageEvent) => {
+        const message = JSON.parse(event.data);
+        const fromId = message.from;
+        if (fromId !== undefined) {
+            this.emit("message", message);
+            this.emit(`messagefrom:${fromId}`, message);
+        } 
+    }
+
+    public sendMessage(message: any) {
+        if (this.signalingSocket.readyState === WebSocket.OPEN) {
+            this.signalingSocket.send(JSON.stringify(message));
+        } else {
+            this.messageQueue.push(JSON.stringify(message));
+        }
+    }
+}
+
 class PeerConnection extends Events {
     readonly localId: PeerId;
     readonly remoteId: PeerId;
     protected signalingConnection: SignalingConnection;
     protected connection: RTCPeerConnection;
     protected dataChannel: RTCDataChannel | null;
+    private messageQueue: string[] = [];
     protected polite: boolean;
     private makingOffer: boolean = false;
     private ignoreOffer: boolean = false;
@@ -29,7 +67,12 @@ class PeerConnection extends Events {
         this.localId = signalingConnection.peerId;
         this.remoteId = remoteId;
 
-        this.connection = new RTCPeerConnection();
+        this.connection = new RTCPeerConnection({
+            "iceServers": [
+                { urls: `stun:${config.stunHost}:${config.stunPort}` },
+                { urls: `turn:${config.turnHost}:${config.turnPort}`, username: 'listentogether', credential: 'V6O3hlU2OgKne4Ua7Z6IjI8jX9jnEG4sk1jS168Q' }
+            ]
+        });
         this.connection.addEventListener("negotiationneeded", this.negotiationNeeded);
         this.connection.addEventListener("icecandidate", this.iceCandidate);
         this.connection.addEventListener("connectionstatechange", this.connectionStateChange);
@@ -96,12 +139,22 @@ class PeerConnection extends Events {
     }
 
     protected dataChannelSetup() {
-        this.dataChannel.addEventListener("open", () => this.emit("open"));
+        this.dataChannel.addEventListener("open", () => {
+            while (this.messageQueue.length > 0) {
+                const message = this.messageQueue.shift();
+                this.dataChannel.send(message);
+            }
+            this.emit("open");
+        });
         this.dataChannel.addEventListener("message", (event: MessageEvent) => this.emit("message", JSON.parse(event.data)));
     }
 
     sendMessage(message: any) {
-        this.dataChannel.send(JSON.stringify(message));
+        if (this.dataChannel.readyState === "open") {
+            this.dataChannel.send(JSON.stringify(message));
+        } else {
+            this.messageQueue.push(JSON.stringify(message));
+        }
     }
 }
 
@@ -124,34 +177,6 @@ class PeerConnectionCallee extends PeerConnection {
             this.dataChannel = event.channel;
             this.dataChannelSetup();
         });
-    }
-}
-
-class SignalingConnection extends Events {
-    readonly peerId: PeerId;
-    private signalingSocket: WebSocket;
-
-    constructor(peerId: PeerId) {
-        super();
-
-        this.peerId = peerId;
-        this.signalingSocket = new WebSocket(`ws://localhost:5000?version=1&id=${this.peerId}`),
-        this.signalingSocket.addEventListener("message", this.receiveMessage);
-    }
-
-    private receiveMessage = (event: MessageEvent) => {
-        const message = JSON.parse(event.data);
-        const fromId = message.from;
-        if (fromId !== undefined) {
-            this.emit("message", message);
-            this.emit(`messagefrom:${fromId}`, message);
-        }
-    }
-
-    public sendMessage(message: any) {
-        if (this.signalingSocket.readyState === WebSocket.OPEN) {
-            this.signalingSocket.send(JSON.stringify(message));
-        }
     }
 }
 
