@@ -1,8 +1,9 @@
 {
-    "peerServer": "listentogether.nsupdate.info",
     "podcastServiceUrl": "https://listentogether.nsupdate.info",
+    "stunHost": "listentogether.nsupdate.info",
     "stunPort": 3478,
+    "turnHost": "listentogether.nsupdate.info",
     "turnPort": 3478,
-    "signalingHost": "localhost",
-    "signalingPort": 5000
+    "signalingHost": "listentogether.nsupdate.info",
+    "signalingPort": 5001
 }
