@@ -4,7 +4,7 @@ import { SignalingConnection } from "./signaling_connection";
 
 export type PeerId = string;
 
-type PeerConnectionOptions = {
+export type PeerConnectionOptions = {
     signalingConnection: SignalingConnection,
     remoteId: PeerId,
     stunHost: string,
@@ -29,7 +29,7 @@ type PeerConnectionOptions = {
  * data channel is open).
  *
  * Normally {@link PeerConnection} does not need to be used directly, but
- * instead {@link PeerConnectionCallee} or {@link PeerConnectionCaller} should
+ * instead {@link CallerPeerConnection} or {@link CalleePeerConnection} should
  * be used depending on wether the peer is initiating the connection (so is the
  * caller) or the peer is aware of a connection attempt to itself (so is the
  * callee). This distinction results in slightly different connection
@@ -182,7 +182,7 @@ type PeerConnectionOptions = {
     }
 }
 
-export class PeerConnectionCaller extends PeerConnection {
+export class CallerPeerConnection extends PeerConnection {
     constructor(options: PeerConnectionOptions) {
         super(options);
 
@@ -192,7 +192,7 @@ export class PeerConnectionCaller extends PeerConnection {
     }
 }
 
-export class PeerConnectionCallee extends PeerConnection {
+export class CalleePeerConnection extends PeerConnection {
     constructor(options: PeerConnectionOptions) {
         super(options);
 

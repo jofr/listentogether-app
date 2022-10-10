@@ -1,7 +1,7 @@
 import { Events } from "../util/events";
 import { logger } from "../util/logger";
 import { SignalingConnection } from "../webrtc/signaling_connection";
-import { PeerId, PeerConnection, PeerConnectionCaller, PeerConnectionCallee } from "../webrtc/peer_connection";
+import { PeerId, PeerConnection, CallerPeerConnection, CalleePeerConnection } from "../webrtc/peer_connection";
 
 import { ListenerId, ListeningState } from "./state";
 import { SyncedListeningState, SyncMessage } from "./synced_state";
@@ -29,7 +29,7 @@ class ListeningPeer extends Events {
         });
         this.signalingConnection.on("message", (message: any) => {
             if (message.type === "description" && !this.peerConnections.has(message.from)) {
-                const peerConnection = new PeerConnectionCallee({
+                const peerConnection = new CalleePeerConnection({
                     signalingConnection: this.signalingConnection,
                     remoteId: message.from,
                     stunHost: config.stunHost,
@@ -55,7 +55,7 @@ class ListeningPeer extends Events {
             return;
         }
 
-        const peerConnection = new PeerConnectionCaller({
+        const peerConnection = new CallerPeerConnection({
             signalingConnection: this.signalingConnection,
             remoteId: peerId,
             stunHost: config.stunHost,
