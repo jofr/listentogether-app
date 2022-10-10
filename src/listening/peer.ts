@@ -12,6 +12,26 @@ export enum ConnectionState {
 
 type PeerId = string;
 
+type SignalingMessage = {
+    type: "description" | "icecandidate",
+    from?: PeerId,
+    to: PeerId,
+    data: any
+}
+
+/**
+ * Connection to a signaling server. Used to exchange control messages with
+ * other peers (connected to the same signaling server) to establish direct
+ * WebRTC connections between two peers ({@link PeerConnection} uses the
+ * signaling connection for that purpose).
+ *
+ * Signaling messages should be of type {@link SignalingMessage} and are send
+ * and received as JSON strings.
+ *
+ * Upon connection the {@link PeerId} is claimed and the server associates this
+ * connection as the only valid connection to send messages on behalf of that
+ * peer (and only of that peer), so one connection per peer is needed.
+ */
 class SignalingConnection extends Events {
     readonly peerId: PeerId;
     private signalingSocket: WebSocket;
@@ -26,23 +46,39 @@ class SignalingConnection extends Events {
             while (this.messageQueue.length > 0) {
                 const message = this.messageQueue.shift();
                 this.signalingSocket.send(message);
+                logger.log("Send enqueued signaling message: ", JSON.parse(message));
             }
         });
         this.signalingSocket.addEventListener("message", this.receiveMessage);
+        this.signalingSocket.addEventListener("close", (event: CloseEvent) => {
+            if (event.code >= 4000 && event.code <= 4002) {
+                logger.error(`Signaling connection for peer ${this.peerId} closed because peer id is either taken, missing or invalid`);
+            } else {
+                logger.error(`Signaling connection for peer ${this.peerId} closed with code ${event.code} (${event.reason})`);
+            }
+        });
+        this.signalingSocket.addEventListener("error", (event: Event) => {
+            logger.error("Signaling connection error: ", event);
+        });
     }
 
     private receiveMessage = (event: MessageEvent) => {
-        const message = JSON.parse(event.data);
-        const fromId = message.from;
-        if (fromId !== undefined) {
+        try {
+            const message = JSON.parse(event.data);
+            const fromId = message.from;
+            if (fromId === undefined) throw new Error("Field 'from' missing in signaling message");
+            logger.log("Received signaling message: ", message);
             this.emit("message", message);
             this.emit(`messagefrom:${fromId}`, message);
-        } 
+        } catch (error) {
+            logger.warn("Received malformed signaling message: ", event.data);
+        }
     }
 
-    public sendMessage(message: any) {
+    public sendMessage(message: SignalingMessage) {
         if (this.signalingSocket.readyState === WebSocket.OPEN) {
             this.signalingSocket.send(JSON.stringify(message));
+            logger.log("Send signaling message: ", message);
         } else {
             this.messageQueue.push(JSON.stringify(message));
         }
@@ -70,7 +106,7 @@ class PeerConnection extends Events {
         this.connection = new RTCPeerConnection({
             "iceServers": [
                 { urls: `stun:${config.stunHost}:${config.stunPort}` },
-                { urls: `turn:${config.turnHost}:${config.turnPort}`, username: 'listentogether', credential: 'V6O3hlU2OgKne4Ua7Z6IjI8jX9jnEG4sk1jS168Q' }
+                { urls: [`turn:${config.turnHost}:${config.turnPort}?transport=tcp`, `turn:${config.turnHost}:${config.turnPort}?transport=udp`], username: 'listentogether', credential: 'V6O3hlU2OgKne4Ua7Z6IjI8jX9jnEG4sk1jS168Q' }
             ]
         });
         this.connection.addEventListener("negotiationneeded", this.negotiationNeeded);
@@ -331,7 +367,7 @@ export class ListeningListener extends ListeningPeer {
                 this.connectionState = ConnectionState.ERROR;
                 this.emit("connectionchange");
             }
-        }, 5000);
+        }, 15000);
     }
 
     private connectionOpen = (): void => {
