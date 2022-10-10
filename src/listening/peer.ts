@@ -75,7 +75,7 @@ class SignalingConnection extends Events {
         }
     }
 
-    public sendMessage(message: SignalingMessage) {
+    sendMessage(message: SignalingMessage) {
         if (this.signalingSocket.readyState === WebSocket.OPEN) {
             this.signalingSocket.send(JSON.stringify(message));
             logger.log("Send signaling message: ", message);
@@ -85,6 +85,29 @@ class SignalingConnection extends Events {
     }
 }
 
+/**
+ * Bidirectional WebRTC connection and data channel between two peers. Needs the
+ * {@link SignalingConnection} for the local peer to establish and negotiate the
+ * WebRTC connection with the remote peer. Handles negotiation according to the
+ * perfect negotiation pattern as [defined in the WebRTC specification (§
+ * 10.7)](@link https://www.w3.org/TR/webrtc/#perfect-negotiation-example).
+ *
+ * Messages on the data channel need to be serializable to JSON and are send and
+ * received as JSON strings.
+ *
+ * Emits a "connected" event as soon as the peer-to-peer connection is
+ * established and an "open" event as soon as the data channel is open (but
+ * messages can be send before that and will get queued and send as soon as the
+ * data channel is open).
+ *
+ * Normally {@link PeerConnection} does not need to be used directly, but
+ * instead {@link PeerConnectionCallee} or {@link PeerConnectionCaller} should
+ * be used depending on wether the peer is initiating the connection (so is the
+ * caller) or the peer is aware of a connection attempt to itself (so is the
+ * callee). This distinction results in slightly different connection
+ * negotiation (who is the polite peer in the perfect negotiation pattern) and
+ * setup of the data channel.
+ */
 class PeerConnection extends Events {
     readonly localId: PeerId;
     readonly remoteId: PeerId;
@@ -103,6 +126,18 @@ class PeerConnection extends Events {
         this.localId = signalingConnection.peerId;
         this.remoteId = remoteId;
 
+        // Need to specify two URIs for the TURN server (with "?transport=tcp"
+        // and "?transport=udp", see RFC 5928) to gather both UDP client-server
+        // and TCP client-server ICE candidates (at least if there are no SRV
+        // resource records as defined in RFC 5928 for that TURN server).
+        // Otherwise we get only UDP candidates per default, which makes WebRTC
+        // connections impossible if the used browser is set to mode 4 of the
+        // WebRTC IP handling policy (as defined in RFC 8828), which e.g.
+        // corresponds to the option "Disable non-proxied UDP" in most Chromium
+        // based browsers. If the browser is in that privacy mode and no proxy
+        // capable of UDP traffic is available the only way to establish a
+        // connection is using a TCP connection to the TURN server (so we need
+        // to make sure that we are gathering those candidates).
         this.connection = new RTCPeerConnection({
             "iceServers": [
                 { urls: `stun:${config.stunHost}:${config.stunPort}` },
@@ -118,17 +153,21 @@ class PeerConnection extends Events {
     }
 
     private negotiationNeeded = async () => {
-        this.makingOffer = true;
+        try {
+            this.makingOffer = true;
 
-        await this.connection.setLocalDescription();
-        this.signalingConnection.sendMessage({
-            type: "description",
-            from: this.localId,
-            to: this.remoteId,
-            data: this.connection.localDescription
-        });
-
-        this.makingOffer = false;
+            await this.connection.setLocalDescription();
+            this.signalingConnection.sendMessage({
+                type: "description",
+                from: this.localId,
+                to: this.remoteId,
+                data: this.connection.localDescription
+            });
+        } catch (error) {
+            logger.error("WebRTC negotiation error: ", error);
+        } finally {
+            this.makingOffer = false;
+        }
     }
 
     private iceCandidate = (event: RTCPeerConnectionIceEvent) => {
@@ -147,30 +186,39 @@ class PeerConnection extends Events {
     }
 
     private signalingMessage = async (message: any) => {
-        if (message.type === "description") {
-            const readyForOffer = !this.makingOffer && (this.connection.signalingState === "stable" || this.isSettingRemoteAnswerPending);
-            const offerCollision = message.data.type === "offer" && !readyForOffer;
+        try {
+            if (message.type === "description") {
+                const readyForOffer = !this.makingOffer && (this.connection.signalingState === "stable" || this.isSettingRemoteAnswerPending);
+                const offerCollision = message.data.type === "offer" && !readyForOffer;
+                this.ignoreOffer = !this.polite && offerCollision;
+                if (this.ignoreOffer) {
+                    return;
+                }
 
-            this.ignoreOffer = !this.polite && offerCollision;
-            if (this.ignoreOffer) {
-                return;
+                this.isSettingRemoteAnswerPending = message.data.type === "answer";
+                await this.connection.setRemoteDescription(message.data);
+                this.isSettingRemoteAnswerPending = false;
+
+                if (message.data.type === "offer") {
+                    await this.connection.setLocalDescription();
+                    this.signalingConnection.sendMessage({
+                        type: "description",
+                        from: this.localId,
+                        to: this.remoteId,
+                        data: this.connection.localDescription
+                    });
+                }
+            } else if (message.type === "icecandidate") {
+                try {
+                    await this.connection.addIceCandidate(message.data);
+                } catch (error) {
+                    if (!this.ignoreOffer) {
+                        logger.error("WebRTC negotiation error: ", error);
+                    }
+                }
             }
-
-            this.isSettingRemoteAnswerPending = message.data.type === "answer";
-            await this.connection.setRemoteDescription(message.data);
-            this.isSettingRemoteAnswerPending = false;
-
-            if (message.data.type === "offer") {
-                await this.connection.setLocalDescription();
-                this.signalingConnection.sendMessage({
-                    type: "description",
-                    from: this.localId,
-                    to: this.remoteId,
-                    data: this.connection.localDescription
-                });
-            }
-        } else if (message.type === "icecandidate") {
-            this.connection.addIceCandidate(message.data);
+        } catch (error) {
+            logger.error("WebRTC negotiation error: ", error);
         }
     }
 
@@ -179,15 +227,27 @@ class PeerConnection extends Events {
             while (this.messageQueue.length > 0) {
                 const message = this.messageQueue.shift();
                 this.dataChannel.send(message);
+                logger.log(`Send enqueued message to ${this.remoteId}: `, JSON.parse(message));
             }
             this.emit("open");
         });
-        this.dataChannel.addEventListener("message", (event: MessageEvent) => this.emit("message", JSON.parse(event.data)));
+        this.dataChannel.addEventListener("message", this.receiveMessage);
+    }
+
+    private receiveMessage = (event: MessageEvent) => {
+        try {
+            const message = JSON.parse(event.data);
+            logger.log(`Received messag from ${this.remoteId}: `, message);
+            this.emit("message", message);
+        } catch (error) {
+            logger.warn(`Received malformed message from ${this.remoteId}: `, event.data);
+        }
     }
 
     sendMessage(message: any) {
         if (this.dataChannel.readyState === "open") {
             this.dataChannel.send(JSON.stringify(message));
+            logger.log(`Send message to ${this.remoteId}: `, message);
         } else {
             this.messageQueue.push(JSON.stringify(message));
         }
@@ -199,7 +259,7 @@ class PeerConnectionCaller extends PeerConnection {
         super(remoteId, signalingConnection);
 
         this.polite = false;
-        this.dataChannel = this.connection.createDataChannel("sync");
+        this.dataChannel = this.connection.createDataChannel("data");
         this.dataChannelSetup();
     }
 }
