@@ -1,4 +1,5 @@
 import Peer, { DataConnection } from "peerjs";
+import { nanoid } from "nanoid";
 
 import { Events } from "../util/events";
 import { ListenerId, ListeningState } from "./state";
@@ -18,7 +19,7 @@ class ListeningPeer extends Events {
     constructor(protected state: SyncedListeningState) {
         super();
 
-        const id: string = Math.floor(Math.random()*2**18).toString(36).padStart(4,'0');
+        const id: string = nanoid();
         this.peer = new Peer(id, {
             host: config.peerServer,
             path: "/",
