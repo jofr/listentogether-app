@@ -1,10 +1,11 @@
-import Peer, { DataConnection } from "peerjs";
 import { nanoid } from "nanoid";
-
 import { Events } from "../util/events";
+import { logger } from "../util/logger";
+import { SignalingConnection } from "../webrtc/signaling_connection";
+import { PeerId, PeerConnection, CallerPeerConnection, CalleePeerConnection } from "../webrtc/peer_connection";
+
 import { ListenerId, ListeningState } from "./state";
 import { SyncedListeningState, SyncMessage } from "./synced_state";
-import { logger } from "../util/logger";
 import { AudioInfo } from "../metadata/types";
 
 import config from "../../config.json";
@@ -14,126 +15,124 @@ export enum ConnectionState {
 }
 
 class ListeningPeer extends Events {
-    protected peer: Peer;
+    readonly id: PeerId = nanoid();
+    private signalingConnection: SignalingConnection;
+    protected peerConnections: Map<PeerId, PeerConnection> = new Map<PeerId, PeerConnection>();
+    protected state: SyncedListeningState;
 
-    constructor(protected state: SyncedListeningState) {
+    constructor(state: SyncedListeningState) {
         super();
 
-        const id: string = nanoid();
-        this.peer = new Peer(id, {
-            host: config.peerServer,
-            path: "/",
-            port: config.signalingPort,
-            secure: true,
-            debug: 0,
-            config: {'iceServers': [
-                { url: `stun:${config.peerServer}:${config.stunPort}` },
-                { url: `turn:${config.peerServer}:${config.turnPort}`, username: 'listentogether', credential: 'V6O3hlU2OgKne4Ua7Z6IjI8jX9jnEG4sk1jS168Q' }
-            ]}
+        this.signalingConnection = new SignalingConnection({
+            peerId: this.id,
+            host: config.signalingHost,
+            port: config.signalingPort
         });
-        this.peer.on("open", () => this.peerSetup());
-        this.peer.on("disconnected", () => this.peerDisconnected());
-        this.peer.on("error", (error: any) => this.peerError(error));
+        this.signalingConnection.on("message", (message: any) => {
+            if (message.type === "description" && !this.peerConnections.has(message.from)) {
+                const peerConnection = new CalleePeerConnection({
+                    signalingConnection: this.signalingConnection,
+                    remoteId: message.from,
+                    stunHost: config.stunHost,
+                    stunPort: config.stunPort,
+                    turnHost: config.turnHost,
+                    turnPort: config.turnPort
+                });
+                peerConnection.on("connected", () => this.emit("connection", peerConnection.remoteId));
+                this.peerConnections.set(message.from, peerConnection);
+            }
+        });
+        this.state = state;
+
+        setTimeout(() => this.peerSetup(), 0);
     }
 
-    protected peerSetup(): void {
-        logger.log("Peer established connection to signalling server");
+    protected peerSetup() {
+
     }
 
-    protected peerDisconnected(): void {
-        logger.log("Peer lost connection to signalling server, trying to reconnect");
-
-        this.peer.reconnect(); /* TODO: Does this call peerSetup() again? (through the open event) */
-    }
-
-    protected peerError(error: any): void {
-        logger.error("Error in peer: ", error);
-    }
-
-    protected createInvitationUrl(id: string) {
-        if (window.location.host.includes("localhost")) {
-            return `https://listentogether.gitlab.io/app/#${id}`;
-        } else {
-            return `${window.location.origin}${window.location.pathname}#${id}`;
+    protected async connectToPeer(peerId: string) {
+        if (this.peerConnections.has(peerId)) {
+            return;
         }
-    }
 
-    destroy(): void {
-        this.peer.destroy();        
-    }
-
-    get id(): string {
-        return this.peer.id;
+        const peerConnection = new CallerPeerConnection({
+            signalingConnection: this.signalingConnection,
+            remoteId: peerId,
+            stunHost: config.stunHost,
+            stunPort: config.stunPort,
+            turnHost: config.turnHost,
+            turnPort: config.turnPort
+        });
+        this.peerConnections.set(peerId, peerConnection);
     }
 }
 
 export class ListeningHost extends ListeningPeer {
-    private listenerConnections: Set<DataConnection> = new Set<DataConnection>();
-
     protected peerSetup(): void {
         /* Setup is only necessary once, but peerSetup gets called again in case of a dis- and reconnect */
-        if (this.state.listeners.includes(this.peer.id)) {
+        if (this.state.listeners.includes(this.id)) {
             return;
         }
 
         this.state.applyChange((state: ListeningState) => {
             state.listeners = [];
-            state.listeners.push(this.peer.id);
+            state.listeners.push(this.id);
         });
 
-        this.peer.on("connection", this.listenerConnected);
+        this.on("connection", this.listenerConnected);
 
         this.state.subscribe(["listeners"], () => this.sendSyncToListeners("listeners"));
         this.state.subscribe(["playlist"], () => this.sendSyncToListeners("playlist"));
         this.state.subscribe(["playback"], () => this.sendSyncToListeners("playback"));
     }
 
-    private listenerConnected = (connection: DataConnection) => {
-        this.listenerConnections.add(connection);
-        connection.on("open", () => this.connectionOpen(connection));
-        connection.on("close", () => this.connectionClosed(connection));
-        connection.on("error", (error: any) => this.connectionError(connection, error));
-        connection.on("data", (message: any) => this.applySyncMessage(connection, message));
+    private listenerConnected = (peerId: PeerId) => {
+        const peerConnection = this.peerConnections.get(peerId);
+        peerConnection.on("open", () => this.connectionOpen(peerConnection));
+        peerConnection.on("close", () => this.connectionClosed(peerConnection));
+        peerConnection.on("error", (error: any) => this.connectionError(peerConnection, error));
+        peerConnection.on("message", (message: any) => this.applySyncMessage(peerConnection, message));
     }
 
-    private connectionOpen = (connection: DataConnection): void => {
-        logger.log(`Connection to listener ${connection.peer} open`);
+    private connectionOpen = (connection: PeerConnection): void => {
+        logger.log(`Connection to listener ${connection.remoteId} open`);
 
         this.state.applyChange((state: ListeningState) => {
-            state.listeners.push(connection.peer);
+            state.listeners.push(connection.remoteId);
         });
 
-        this.sendSyncToListeners("playlist", [connection.peer]);
-        this.sendSyncToListeners("playback", [connection.peer]);
+        this.sendSyncToListeners("playlist", [connection.remoteId]);
+        this.sendSyncToListeners("playback", [connection.remoteId]);
     }
 
-    private deleteConnection(connection: DataConnection) {
+    private deleteConnection(connection: PeerConnection) {
         this.state.applyChange((state: ListeningState) => {
-            const index = state.listeners.indexOf(connection.peer);
+            const index = state.listeners.indexOf(connection.remoteId);
             state.listeners.splice(index, 1);
         });
 
-        this.listenerConnections.delete(connection);
+        //this.listenerConnections.delete(connection); TODO
     }
 
-    private connectionClosed = (connection: DataConnection): void => {
-        this.deleteConnection(connection);
+    private connectionClosed = (connection: PeerConnection): void => {
+        //this.deleteConnection(connection); // TODO
 
-        logger.log(`Connection to listener ${connection.peer} closed`);
+        logger.log(`Connection to listener ${connection.remoteId} closed`);
     }
 
-    private connectionError = (connection: DataConnection, error: any): void => {
-        this.deleteConnection(connection);
+    private connectionError = (connection: PeerConnection, error: any): void => {
+        //this.deleteConnection(connection); // TODO
 
-        logger.log(`Error in connection to listener ${connection.peer}:`, error);
+        logger.log(`Error in connection to listener ${connection.remoteId}:`, error);
     }
 
-    private applySyncMessage = async (connection: DataConnection, message: any) => {
+    private applySyncMessage = async (connection: PeerConnection, message: any) => {
         logger.log("Received sync message:", message);
 
         if (message.type == "audioinforequest") {
             const audioInfo = await window.metadataCache.getAudioInfo(message.data.uri);
-            connection.send({
+            connection.sendMessage({
                 type: "audioinfo",
                 data: audioInfo
             });
@@ -142,27 +141,28 @@ export class ListeningHost extends ListeningPeer {
 
     private sendSyncToListeners = (type: string, listeners?: ListenerId[]) => {
         const listenerConnections = listeners === undefined
-                                  ? this.listenerConnections
-                                  : Array.from(this.listenerConnections).filter((connection: DataConnection) => listeners.includes(connection.peer));
+                                  ? this.peerConnections.values()
+                                  : Array.from(this.peerConnections.values()).filter((connection: PeerConnection) => listeners.includes(connection.remoteId));
         for (const connection of listenerConnections) {
-            if (connection.open) {
-                connection.send({
+            //if (connection.open) {
+                connection.sendMessage({
                     type: type,
                     data: this.state[type]
                 });
-            } else {
-                logger.warn(`Tried sending sync but connection to listener ${connection.peer} not open`);
-            }
+            //} else {
+            //    logger.warn(`Tried sending sync but connection to listener ${connection.peer} not open`);
+            //} TODO
         }
     }
 
     get invitationUrl(): string {
-        return this.createInvitationUrl(this.peer.id);
+        //return this.createInvitationUrl(this.peer.id); TODO
+        return "foo";
     }
 }
 
 export class ListeningListener extends ListeningPeer {
-    private hostConnection: DataConnection;
+    private hostConnection: PeerConnection;
     private audioInfoRequests: Map<string, Function> = new Map<string, Function>();
     connectionState: ConnectionState = ConnectionState.CONNECTING;
 
@@ -171,18 +171,19 @@ export class ListeningListener extends ListeningPeer {
     }
 
     protected peerSetup(): void {
-        this.hostConnection = this.peer.connect(this.hostId, { reliable: true });
+        this.connectToPeer(this.hostId);
+        this.hostConnection = this.peerConnections.get(this.hostId);
         this.hostConnection.on("open", this.connectionOpen);
         this.hostConnection.on("close", this.connectionClosed);
         this.hostConnection.on("error", this.connectionError);
-        this.hostConnection.on("data", this.applySyncMessage);
+        this.hostConnection.on("message", this.applySyncMessage);
 
         setTimeout(() => {
             if (this.connectionState === ConnectionState.CONNECTING) {
                 this.connectionState = ConnectionState.ERROR;
                 this.emit("connectionchange");
             }
-        }, 5000);
+        }, 15000);
     }
 
     private connectionOpen = (): void => {
@@ -226,22 +227,23 @@ export class ListeningListener extends ListeningPeer {
         const audioInfoPromise = new Promise<AudioInfo | null>((resolve, reject) => resolveAudioInfo = resolve);
         this.audioInfoRequests.set(uri, resolveAudioInfo);
 
-        if (this.hostConnection.open) {
+        //if (this.hostConnection.open) {
             this.audioInfoRequests.set(uri, resolveAudioInfo);
-            this.hostConnection.send({
+            this.hostConnection.sendMessage({
                 type: "audioinforequest",
                 data: {
                     uri: uri
                 }
             });
-        } else {
-            resolveAudioInfo(null);
-        }
+        //} else {
+        //    resolveAudioInfo(null);
+        //}
 
         return audioInfoPromise;
     }
 
     get invitationUrl(): string {
-        return this.createInvitationUrl(this.hostId);
+        //return this.createInvitationUrl(this.hostId);
+        return "foo"
     }
 }
