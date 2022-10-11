@@ -44,10 +44,10 @@ export class PlayerTimeline extends LitElement {
 
     render() {
         const session = this.sessionController.session;
-        const disabled = !session || (session.peer instanceof ListeningListener) || !session.currentAudio;
-        const noAudio = !session || !session.currentAudio;
-        const duration = session?.currentAudio ? session.player.duration : 1.0;
-        const currentTime = session?.currentAudio ? session.player.currentTime : 0.0;
+        const disabled = !session || (session.listeningPeer instanceof ListeningListener) || !session.playback.currentAudio;
+        const noAudio = !session || !session.playback.currentAudio;
+        const duration = session?.playback.currentAudio ? session.player.duration : 1.0;
+        const currentTime = session?.playback.currentAudio ? session.player.currentTime : 0.0;
 
         return html`
             <mwc-slider ?disabled=${disabled} @change=${(event: any) => session.seek(event.detail.value)} value="${currentTime}" min="0" max="${duration}"></mwc-slider>
@@ -121,8 +121,8 @@ export class PlayerControls extends LitElement {
 
     render() {
         const session = this.sessionController.session;
-        const disabled = !session || !(session.peer && session.peer instanceof ListeningHost) || !session.currentAudio;
-        const currentAudioIndex = (session && session.currentAudio) ? session.listeningState.playlist.indexOf(session.currentAudio.uri) : -1;
+        const disabled = !session || !(session.listeningPeer && session.listeningPeer instanceof ListeningHost) || !session.playback.currentAudio;
+        const currentAudioIndex = (session && session.playback.currentAudio) ? session.listeningState.playlist.indexOf(session.playback.currentAudio) : -1;
         const playlistLength = (session && session.playlist) ? session.playlist.length : 0;
         const prevDisabled = currentAudioIndex === 0 ? true : false;
         const nextDisabled = currentAudioIndex === (playlistLength - 1) ? true : false;
@@ -315,7 +315,7 @@ export class SessionControls extends LitElement {
     private sessionController = new SessionController(this, { subscribe: [] });
 
     renderFab() {
-        if (this.sessionController.session?.peer && this.sessionController.session.peer instanceof ListeningListener) {
+        if (this.sessionController.session?.listeningPeer && this.sessionController.session.listeningPeer instanceof ListeningListener) {
             return nothing;
         } else {
             return html`<mwc-icon-button id="add" icon="playlist_add" @click=${() => window.app.showDialog("add-audio-dialog")}></mwc-icon-button>`;

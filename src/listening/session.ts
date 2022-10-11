@@ -1,33 +1,67 @@
 import { MediaSession } from "@jofr/capacitor-media-session";
 
 import { Events } from "../util/events";
-import { ListeningHost, ListeningListener } from "./peer";
-import { SyncableListeningState, PlaybackState, ListeningState, StateSubscriptionFunction } from "./state";
-import { AudioInfo, AudioUri } from "../metadata/types";
+import { ListeningHost, ListeningListener, ListeningPeer } from "./peer";
+import { SyncableListeningState, ListeningState, StateSubscribable, StateSubscriptionFunction } from "./state";
+import { AudioUri, CoverInfo } from "../metadata/types";
 import { AudioPlayer } from "../player/audio_player";
 import { logger } from "../util/logger";
-import { state } from "lit/decorators";
+
+export type SessionPlayback = {
+    currentAudio: AudioUri | null,
+    currentTime: number,
+    playbackRate: number,
+    paused: boolean
+}
+
+export type PromisedAudioInfo = {
+    uri: AudioUri,
+    title: Promise<string>,
+    artist: Promise<string>,
+    album: Promise<string>,
+    duration: Promise<number>,
+    cover: Promise<CoverInfo>
+}
+
+export type SessionPlaylist = PromisedAudioInfo[];
 
 export type ListenerInfo = {
     id: string,
     name: string
 }
 
-export class ListeningSession extends Events {
-    constructor(private internalState: SyncableListeningState, public peer: ListeningHost | ListeningListener) {
+/**
+ * The session is the user (or UI) facing part of a listening. It combines state
+ * and peer and provides functionality to change the state using actions and
+ * operations one would expect from a media session (play, pause, skip, ...) and
+ * forwards state change subscriptions to UI elements.
+ *
+ * Internally it also makes sure that the actual audio player is as close as
+ * possible to the desired state and uses the Media Session API of the system
+ * (either the Web API or the Android API through the capacitor plugin) to
+ * provide metadata about the current audio (e.g. for displaying media
+ * notifications) and to react to hardware media keys (or software media keys
+ * from a media notification).
+ *
+ * A session should always be created using either the static function to create
+ * a host ({@link ListeningSession#CreateHost}) or the one to create a listener
+ * ({@link ListeningSession#CreateListener}) which set up the session with the
+ * right peer for the two different roles.
+ */
+export class ListeningSession extends Events implements StateSubscribable {
+    private state: SyncableListeningState;
+    private peer: ListeningPeer;
+
+    constructor(state: SyncableListeningState, peer: ListeningPeer) {
         super();
 
-        MediaSession.setActionHandler({ action: "play" }, () => this.togglePlay("play"));
-        MediaSession.setActionHandler({ action: "pause" }, () => this.togglePlay("pause"));
-        MediaSession.setActionHandler({ action: "seekto" }, (details: MediaSessionActionDetails) => this.seek(details.seekTime));
-        MediaSession.setActionHandler({ action: "seekbackward" }, () => this.replay());
-        MediaSession.setActionHandler({ action: "seekforward" }, () => this.forward());
-        MediaSession.setActionHandler({ action: "stop" }, () => this.stop());
+        this.state = state;
+        this.peer = peer;
 
-        this.player.on(["play", "pause", "durationchange", "seeked"], this.updateMediaSessionPlaybackState);
+        this.mediaSessionAPISetup();
+
+        // Implement auto play and skip to next track at the end of current one
         this.player.on(["ended"], this.skipNext.bind(this));
-        internalState.subscribe(["playback/currentAudio", "playlist"], this.updateMediaSessionActions);
-        internalState.subscribe(["playback/currentAudio"], this.updateMediaSessionMetadata);
     }
 
     static CreateHost() {
@@ -44,14 +78,71 @@ export class ListeningSession extends Events {
         return new ListeningSession(state, listener);
     }
 
+    // If we are a listener and loose the connection to the host we transform
+    // this session to a host session so that playback can continue using the
+    // current state (albeit without synchronization to the other remaining
+    // peers) and we can control that playback (if that was not allowed for
+    // listeners before)
+    transformToHost() {
+        this.peer = new ListeningHost(this.state);
+        window.session = window.session; /* TODO: triggers updates, solve this in a better way */
+        this.emit("listenertohost");
+    }
+
     destroy() {
         //this.peer.destroy(); TODO
     }
 
-    transformToHost() {
-        this.peer = new ListeningHost(this.internalState);
-        window.session = window.session; /* TODO: triggers updates, solve this in a better way */
-        this.emit("listenertohost");
+    on(eventName: string | string[], eventHandler: (...args: any[]) => void) {
+        const playerEvents = ["audiochange", "timeupdate", "pause", "play", "durationchange", "buffering", "canplay"];
+
+        const listenOnSelfOrPlayer = (eventName: string, eventHandler: (...args: any[]) => void) => {
+            if (playerEvents.includes(eventName)) {
+                this.player.on(eventName, eventHandler);
+            } else {
+                super.on(eventName, eventHandler);
+            }
+        }
+
+        if (typeof(eventName) === "string") {
+            listenOnSelfOrPlayer(eventName, eventHandler);
+        } else {
+            for (const name of eventName) {
+                listenOnSelfOrPlayer(name, eventHandler);
+            }
+        }
+    }
+
+    subscribe(paths: string[], callback: StateSubscriptionFunction) {
+        this.state.subscribe(paths, callback);
+    }
+
+    private mediaSessionAPISetup() {
+        // Set up possible system media keys to initiate the desired action (for
+        // the actions that are always possible and do not depend on some other
+        // part of the state, e.g. skip next is only possible if there is a next
+        // audio in the playlist, see updateMediaSessionActions below)
+        MediaSession.setActionHandler({ action: "play" }, () => this.togglePlay("play"));
+        MediaSession.setActionHandler({ action: "pause" }, () => this.togglePlay("pause"));
+        MediaSession.setActionHandler({ action: "seekto" }, (details: MediaSessionActionDetails) => this.seek(details.seekTime));
+        MediaSession.setActionHandler({ action: "seekbackward" }, () => this.replay());
+        MediaSession.setActionHandler({ action: "seekforward" }, () => this.forward());
+        MediaSession.setActionHandler({ action: "stop" }, () => this.stop());
+
+        // Change media playback metadata through the Media Session API when
+        // actual playback changes (not when the state itself changes because
+        // that might not immediately change the actual playback and the media
+        // notifications should synchronize with actual playback as experienced
+        // by the user)
+        this.player.on(["play", "pause", "durationchange", "seeked"], this.updateMediaSessionPlaybackState);
+
+        // Current audio changes in the state change playback immediately so can
+        // also be reflected immediately in the metadata provided to the system.
+        // Current audio and playlist changes could also change some of the
+        // possible actions (e.g. if skip next is possible) so those should be
+        // updated immediately too.
+        this.state.subscribe(["playback/currentAudio", "playlist"], this.updateMediaSessionActions);
+        this.state.subscribe(["playback/currentAudio"], this.updateMediaSessionMetadata);
     }
 
     private updateMediaSessionPlaybackState = () => {
@@ -66,13 +157,17 @@ export class ListeningSession extends Events {
     }
 
     private updateMediaSessionActions = () => {
-        if (!this.currentAudio || this.playlist.findIndex((audio: AudioInfo) => audio.uri === this.currentAudio.uri) === 0) {
+        const currentAudioUri = this.state.playback.currentAudio;
+        const playlistIndex = this.state.playlist.findIndex((uri: AudioUri) => uri === currentAudioUri);
+        const playlistLength = this.state.playlist.length;
+
+        if (!currentAudioUri || playlistIndex === 0) {
             MediaSession.setActionHandler({ action: "previoustrack" }, null);
         } else {
             MediaSession.setActionHandler({ action: "previoustrack" }, () => this.skipPrevious());
         }
 
-        if (!this.currentAudio || this.playlist.findIndex((audio: AudioInfo) => audio.uri === this.currentAudio.uri) === (this.playlist.length - 1)) {
+        if (!currentAudioUri || playlistIndex === (playlistLength - 1)) {
             MediaSession.setActionHandler({ action: "nexttrack" }, null);
         } else {
             MediaSession.setActionHandler({ action: "nexttrack" }, () => this.skipNext());
@@ -80,7 +175,7 @@ export class ListeningSession extends Events {
     }
 
     private updateMediaSessionMetadata = async () => {
-        const audioInfo = await window.metadataCache.getAudioInfo(this.currentAudio.uri);
+        const audioInfo = await window.metadataCache.getAudioInfo(this.state.playback.currentAudio);
         const mediaMetadata: MediaMetadataInit = {
             title: audioInfo.title,
             artist: audioInfo.artist,
@@ -91,8 +186,8 @@ export class ListeningSession extends Events {
             mediaMetadata.artwork = [
                 {
                     src: audioInfo.cover.url || audioInfo.cover.objectUrl || audioInfo.cover.dataUrl,
-                    sizes: "256x256",
-                    type: "image/png"
+                    sizes: "256x256", // TODO: actual size
+                    type: "image/png" // TODO: actual file format
                 }
             ]
         }
@@ -100,22 +195,22 @@ export class ListeningSession extends Events {
     }
 
     addAudio(audio: AudioUri) {
-        if (this.internalState.playlist.includes(audio)) {
+        if (this.state.playlist.includes(audio)) {
             logger.log(`Ignored request to add audio which is already in playlist: ${audio}`);
             return;
         }
 
-        this.internalState.applyLocalChange((state: ListeningState) => {
+        this.state.applyLocalChange((state: ListeningState) => {
             state.playlist.push(audio);
         });
 
-        if (this.internalState.playback.currentAudio === null) {
+        if (this.state.playback.currentAudio === null) {
             this.playAudio(audio);
         }
     }
 
     removeAudio(audio: AudioUri) {
-        this.internalState.applyLocalChange((state: ListeningState) => {
+        this.state.applyLocalChange((state: ListeningState) => {
             state.playlist.splice(state.playlist.indexOf(audio), 1);
         });
     }
@@ -125,12 +220,12 @@ export class ListeningSession extends Events {
     }
 
     playAudio(audio: AudioUri) {
-        if (!this.internalState.playlist.includes(audio)) {
-            logger.warn(`Request to play audio which is not in playlist ignored: ${audio}`);
+        if (!this.state.playlist.includes(audio)) {
+            logger.warn(`Ignored request to play audio which is not in playlist: ${audio}`);
             return;
         }
 
-        this.internalState.applyLocalChange((state: ListeningState) => {
+        this.state.applyLocalChange((state: ListeningState) => {
             state.playback.currentAudio = audio;
             state.playback.audioTime = 0;
             state.playback.referenceTime = Date.now();
@@ -138,7 +233,7 @@ export class ListeningSession extends Events {
     }
 
     togglePlay(playState?: "play" | "pause") {
-        this.internalState.applyLocalChange((state: ListeningState) => {
+        this.state.applyLocalChange((state: ListeningState) => {
             state.playback.paused = playState ? (playState === "pause" ? true : false) : !state.playback.paused;
             state.playback.audioTime = this.player.currentTime;
             state.playback.referenceTime = Date.now();
@@ -146,7 +241,7 @@ export class ListeningSession extends Events {
     }
 
     seek(time: number) {
-        this.internalState.applyLocalChange((state: ListeningState) => {
+        this.state.applyLocalChange((state: ListeningState) => {
             state.playback.audioTime = time;
             state.playback.referenceTime = Date.now();
         });
@@ -161,16 +256,16 @@ export class ListeningSession extends Events {
     }
 
     skipPrevious() {
-        const index = this.internalState.playlist.indexOf(this.internalState.playback.currentAudio);
+        const index = this.state.playlist.indexOf(this.state.playback.currentAudio);
         if ((index - 1) >= 0) {
-            this.playAudio(this.internalState.playlist[index - 1]);
+            this.playAudio(this.state.playlist[index - 1]);
         }
     }
 
     skipNext() {
-        const index = this.internalState.playlist.indexOf(this.internalState.playback.currentAudio);
-        if ((index + 1) < this.internalState.playlist.length) {
-            this.playAudio(this.internalState.playlist[index + 1]);
+        const index = this.state.playlist.indexOf(this.state.playback.currentAudio);
+        if ((index + 1) < this.state.playlist.length) {
+            this.playAudio(this.state.playlist[index + 1]);
         }
     }
 
@@ -178,76 +273,36 @@ export class ListeningSession extends Events {
         this.togglePlay("pause");
     }
 
-    on(eventName: string | string[], eventHandler: (...args: any[]) => void) {
-        const playerEvents = ["audiochange", "timeupdate", "pause", "play", "durationchange", "buffering", "canplay"];
-
-        const onSelfOrPlayer = (eventName: string, eventHandler: (...args: any[]) => void) => {
-            if (playerEvents.includes(eventName)) {
-                this.player.on(eventName, eventHandler);
-            } else {
-                super.on(eventName, eventHandler);
-            }
-        }
-
-        if (typeof(eventName) === "string") {
-            onSelfOrPlayer(eventName, eventHandler);
-        } else {
-            for (const name of eventName) {
-                onSelfOrPlayer(name, eventHandler);
-            }
+    // Actual playback state in this peer and session (might be different from
+    // internal state used for synchronization)
+    get playback(): SessionPlayback {
+        return {
+            currentAudio: this.state.playback.currentAudio,
+            currentTime: this.player.currentTime,
+            playbackRate: this.player.playbackRate,
+            paused: this.player.paused
         }
     }
 
-    subscribe(paths: string[], callback: StateSubscriptionFunction) {
-        this.internalState.subscribe(paths, callback);
-    }
-
-    get playback(): PlaybackState {
-        return this.internalState.playback;
-    }
-
-    get currentAudio(): AudioInfo | null {
-        const audioInfo = this.playlist.find((audio: AudioInfo) => audio.uri === this.playback.currentAudio) || null;
-        if (audioInfo !== null) {
-            audioInfo.duration = this.player.duration;
-        }
-        return audioInfo;
-    }
-
-    get playlist(): AudioInfo[] {
-        const playlist: AudioInfo[] = [];
-        for (const audioUri of this.internalState.playlist) {
+    // Playlist enriched with metadata information (if available)
+    get playlist(): SessionPlaylist {
+        const playlist: SessionPlaylist = [];
+        for (const audioUri of this.state.playlist) {
+            const audioInfo = window.metadataCache.getAudioInfo(audioUri);
+            const duration: Promise<number> = this.state.playback.currentAudio === audioUri
+                                            ? new Promise((resolve) => resolve(this.player.duration))
+                                            : audioInfo.then(info => info.duration);
             playlist.push({
                 uri: audioUri,
-                title: "Unknown Title",
-                artist: "Unknown Artist",
-                album: "Unknown Album",
-                duration: audioUri === this.playback.currentAudio ? this.player.duration : 1.0
+                title: audioInfo.then(info => info.title),
+                artist: audioInfo.then(info => info.artist),
+                album: audioInfo.then(info => info.album),
+                duration: duration,
+                cover: audioInfo.then(info => info.cover)
             });
         }
 
         return playlist;
-    }
-
-    get fullPlaylist(): Promise<AudioInfo[]> {
-        return new Promise(async (resolve, reject) => {
-            const playlist: AudioInfo[] = [];
-            for (const audioUri of this.internalState.playlist) {
-                const audioInfo = await window.metadataCache.getAudioInfo(audioUri);
-                if (audioInfo) {
-                    playlist.push(audioInfo);
-                } else {
-                    playlist.push({
-                        uri: audioUri,
-                        title: "Unknown Title",
-                        artist: "Unknown Artist",
-                        album: "Unknown Album",
-                        duration: 1
-                    });
-                }
-            }
-            resolve(playlist);
-        });
     }
 
     get listeners(): ListenerInfo[] {
@@ -270,7 +325,7 @@ export class ListeningSession extends Events {
         }
 
         const exclude = this.peer instanceof ListeningListener ? [this.peer.id, this.peer.hostId] : [this.peer.id];
-        for (const listenerId of this.internalState.listeners.filter((id: string) => !exclude.includes(id))) {
+        for (const listenerId of this.state.listeners.filter((id: string) => !exclude.includes(id))) {
             listeners.push({
                 id: listenerId,
                 name: "+1"
@@ -280,15 +335,19 @@ export class ListeningSession extends Events {
         return listeners;
     }
 
-    get listeningState(): ListeningState {
-        return this.internalState;
-    }
-
     get player(): AudioPlayer {
         return window.player;
     }
 
+    get listeningState(): SyncableListeningState {
+        return this.state;
+    }
+
+    get listeningPeer(): ListeningPeer {
+        return this.peer;
+    }
+
     get invitationUrl(): string {
-        return this.peer.invitationUrl;
+        return (this.peer as ListeningHost | ListeningListener).invitationUrl;
     }
 }

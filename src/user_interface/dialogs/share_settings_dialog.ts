@@ -41,7 +41,7 @@ export class ShareSettingsDialog extends ModalDialog {
     renderContent() {
         const session = this.sessionController.session;
 
-        if (session?.peer && session.peer instanceof ListeningHost) {
+        if (session?.listeningPeer && session.listeningPeer instanceof ListeningHost) {
             return html`
                 <mwc-button unelevated icon="exit_to_app" label="End listening" @click=${this.endListening}></mwc-button>
             `;

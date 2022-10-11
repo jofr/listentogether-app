@@ -5,7 +5,7 @@ import { until } from 'lit/directives/until';
 
 import { ListeningHost } from "../../listening/peer";
 import { SessionController } from "../controllers/session";
-import { SyncedListeningState } from "../../listening/synced_state";
+import { SyncableListeningState } from "../../listening/state";
 import { ListeningState } from "../../listening/state";
 import { clamp, defaultCoverObjectUrl } from "../../util/util";
 import { AppPage } from "./page";
@@ -159,7 +159,7 @@ export class EditablePlaylist extends AppPage {
 
         const elements = Array.from(this.playlistElement.querySelectorAll(":scope > mwc-list-item")) as HTMLElement[];
         const playlist = elements.map(element => element.dataset.uri);
-        (this.sessionController.session.listeningState as SyncedListeningState).applyChange((state: ListeningState) => {
+        (this.sessionController.session.listeningState as SyncableListeningState).applyLocalChange((state: ListeningState) => {
             state.playlist = playlist;
         });
     }
@@ -167,13 +167,13 @@ export class EditablePlaylist extends AppPage {
     render() {
         const session = this.sessionController.session;
         const audios = session?.playlist || [];
-        const editable = (session?.peer && session.peer instanceof ListeningHost);
+        const editable = (session?.listeningPeer && session.listeningPeer instanceof ListeningHost);
 
         if (editable) {
             return html`
                 <mwc-list @touchmove=${this.touchMove} @touchend=${this.touchEnd}>
                     ${repeat(audios, (audio) => audio.uri, (audio) => html`
-                        <mwc-list-item @click=${() => { this.selectAudio(audio.uri) }} ?activated=${audio.uri == session.currentAudio.uri} ?selected=${audio.uri == session.currentAudio.uri} twoline graphic="medium" hasMeta data-uri="${audio.uri}">
+                        <mwc-list-item @click=${() => { this.selectAudio(audio.uri) }} ?activated=${audio.uri == session.playback.currentAudio} ?selected=${audio.uri == session.playback.currentAudio} twoline graphic="medium" hasMeta data-uri="${audio.uri}">
                             <span>${until(window.metadataCache.getAudioInfo(audio.uri).then(audio => audio.title), html`<loading-placeholder characters="15"></loading-placeholder>`)}</span>
                             <span slot="secondary">${until(window.metadataCache.getAudioInfo(audio.uri).then(audio => audio.album), html`<loading-placeholder characters="10"></loading-placeholder>`)}</span>
                             <img slot="graphic" src="${until(window.metadataCache.getAudioInfo(audio.uri).then(audio => audio.cover?.url ? audio.cover.url : defaultCoverObjectUrl), defaultCoverObjectUrl)}" />
@@ -196,7 +196,7 @@ export class EditablePlaylist extends AppPage {
             return html`
                 <mwc-list noninteractive>
                     ${repeat(audios, (audio) => audio.uri, (audio) => html`
-                        <mwc-list-item ?activated=${audio.uri == session.currentAudio.uri} twoline graphic="medium" hasMeta data-uri="${audio.uri}">
+                        <mwc-list-item ?activated=${audio.uri == session.playback.currentAudio} twoline graphic="medium" hasMeta data-uri="${audio.uri}">
                             <span>${until(window.metadataCache.getAudioInfo(audio.uri).then(audio => audio.title), html`<loading-placeholder characters="15"></loading-placeholder>`)}</span>
                             <span slot="secondary">${until(window.metadataCache.getAudioInfo(audio.uri).then(audio => audio.album), html`<loading-placeholder characters="10"></loading-placeholder>`)}</span>
                             <img slot="graphic" src="${until(window.metadataCache.getAudioInfo(audio.uri).then(audio => audio.cover?.url ? audio.cover.url : defaultCoverObjectUrl), defaultCoverObjectUrl)}" />

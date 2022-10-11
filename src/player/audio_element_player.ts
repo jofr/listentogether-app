@@ -1,10 +1,10 @@
 import { Events } from "../util/events";
 import { AudioPlayer } from "./audio_player";
-import { SyncedListeningState } from "../listening/synced_state";
+import { SyncableListeningState } from "../listening/state";
 import { logger } from "../util/logger";
 
 export class AudioElementPlayer extends Events implements AudioPlayer {
-    private state: SyncedListeningState = null;
+    private state: SyncableListeningState = null;
     private audioElement: HTMLAudioElement;
     buffering: boolean = false;
     private audioDurationFromMetadata: number;
@@ -87,7 +87,7 @@ export class AudioElementPlayer extends Events implements AudioPlayer {
         }
     }
 
-    set listeningState(state: SyncedListeningState) {
+    set listeningState(state: SyncableListeningState) {
         if (this.state !== null) {
             this.state.unsubscribe(["playback/currentAudio"], this.updateAudio);
             this.state.unsubscribe(["playback/paused"], this.updatePlayPause)

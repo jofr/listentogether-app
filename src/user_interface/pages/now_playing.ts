@@ -112,8 +112,8 @@ export class NowPlaying extends AppPage {
     coverTemplate(): TemplateResult {
         const session = this.sessionController.session;
 
-        if (session?.currentAudio) {
-            return html`<img id="cover" src="${until(window.metadataCache.getAudioInfo(session.currentAudio.uri).then(audio => audio.cover?.url ? audio.cover.url : defaultCoverObjectUrl), defaultCoverObjectUrl)}" />`;
+        if (session?.playback.currentAudio) {
+            return html`<img id="cover" src="${until(window.metadataCache.getAudioInfo(session.playback.currentAudio).then(audio => audio.cover?.url ? audio.cover.url : defaultCoverObjectUrl), defaultCoverObjectUrl)}" />`;
         } else {
             return html`<div class="add-audio" @click=${() => window.app.showDialog("add-audio-dialog")}>playlist_add</div>`;
         }
@@ -122,13 +122,13 @@ export class NowPlaying extends AppPage {
     informationTemplate(): TemplateResult {
         const session = this.sessionController.session;
 
-        if (session?.currentAudio) {
-            const currentAudio = session.currentAudio;
+        if (session?.playback.currentAudio) {
+            const currentAudio = session.playback.currentAudio;
 
             return html`
                 <div id="title-and-album">
-                    <h1>${until(window.metadataCache.getAudioInfo(currentAudio.uri).then(audio => audio.title), html`<loading-placeholder characters="10"></loading-placeholder>`)}</h1>
-                    <h2>${until(window.metadataCache.getAudioInfo(currentAudio.uri).then(audio => audio.album), html`<loading-placeholder characters="10"></loading-placeholder>`)}</h2>
+                    <h1>${until(window.metadataCache.getAudioInfo(currentAudio).then(audio => audio.title), html`<loading-placeholder characters="10"></loading-placeholder>`)}</h1>
+                    <h2>${until(window.metadataCache.getAudioInfo(currentAudio).then(audio => audio.album), html`<loading-placeholder characters="10"></loading-placeholder>`)}</h2>
                 </div>
                 <!--<mwc-icon-button id="more-information" icon="info"></mwc-icon-button>-->
             `
