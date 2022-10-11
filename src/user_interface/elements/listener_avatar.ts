@@ -1,5 +1,4 @@
 import * as Color from "color";
-import * as SparkMD5 from "spark-md5";
 import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators";
 
@@ -40,11 +39,20 @@ export class ListenerAvatar extends LitElement {
     @property()
     name: string;
 
-    /* Mainly taken and modified from: https://github.com/tobiaslins/avatar/tree/master/src */
     private generateGradient() {
-        const hash = SparkMD5.hash(this.id);
+        // Alphabet of characters used for random IDs is in ASCII range
+        // [48..122] (letters, numbers, some symbols) and we need a random color
+        // in hex notation. So just map the first three ID characters (one each
+        // for r, g and b) from the used range [48..122] to the needed range
+        // [0..255] and convert this to its hexadecimal string representation
+        // (this of course looses resolution and not all values are possible
+        // because some symbols in that ASCII range are never used for the ID
+        // but should be good enough for this purpose)
+        const hex = Array.from(this.id.substring(0, 3)).map(x => Math.floor((x.charCodeAt(0) - 48) * 3.45).toString(16)).join("");
 
-        let firstColor = new Color(`#${hash.substring(0, 6)}`).saturate(0.5);
+        // This part (generating two matching colors for gradient) is taken from
+        // https://github.com/tobiaslins/avatar/tree/master/src */
+        let firstColor = new Color(`#${hex}`).saturate(0.5);
         const lightning = firstColor.hsl().color[2];
         if (lightning < 25) {
             firstColor = firstColor.lighten(3);
@@ -71,7 +79,7 @@ export class ListenerAvatar extends LitElement {
 
         this.firstColor = firstColor.hex();
         this.secondColor = secondColor.hex();
-        this.angle = 10 + 2 * parseInt(hash.substr(0, 1), 16);
+        this.angle = 10 + 2 * parseInt(hex.substring(0, 1), 16);
     }
 
     render() {
