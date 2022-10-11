@@ -5,8 +5,8 @@ import { AudioUri, ListenerId, ListeningState, PlaybackState } from "./state";
 import { arraysEqual, deepCopy } from "../util/util";
 
 export type SyncMessage = {
-    type: "playback" | "playlist" | "listeners",
-    data: PlaybackState | AudioUri[] | ListenerId[]
+    type: "playback" | "playlist" | "listeners" | "audioinforequest" | "audioinfo",
+    data: PlaybackState | AudioUri[] | ListenerId[] | any
 }
 
 type Subscription = {

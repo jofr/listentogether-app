@@ -110,6 +110,8 @@ export type PeerConnectionOptions = {
     private connectionStateChange = async () => {
         if (this.connection.connectionState === "connected") {
             this.emit("connected");
+        } else if (["closed", "failed", "disconnected"].includes(this.connection.connectionState)) {
+            this.emit("closed");
         }
     }
 
@@ -151,13 +153,16 @@ export type PeerConnectionOptions = {
     }
 
     protected dataChannelSetup() {
+        // TODO: data channel actually supports queueing, so we only need to
+        // queue for time before the datachannel event and can then empty the
+        // queue (even if data channel is not yet open)
         this.dataChannel.addEventListener("open", () => {
             while (this.messageQueue.length > 0) {
                 const message = this.messageQueue.shift();
                 this.dataChannel.send(message);
                 logger.log(`Send enqueued message to ${this.remoteId}: `, JSON.parse(message));
             }
-            this.emit("open");
+            this.emit("datachannelopen");
         });
         this.dataChannel.addEventListener("message", this.receiveMessage);
     }
@@ -173,7 +178,7 @@ export type PeerConnectionOptions = {
     }
 
     sendMessage(message: any) {
-        if (this.dataChannel.readyState === "open") {
+        if (this.dataChannel && this.dataChannel.readyState === "open") {
             this.dataChannel.send(JSON.stringify(message));
             logger.log(`Send message to ${this.remoteId}: `, message);
         } else {

@@ -52,7 +52,7 @@ export class JoinListeningDialog extends ModalDialog {
     set session(session: ListeningSession) {
         this.possibleSession = session;
         this.possibleSession.subscribe(["playlist"], () => this.requestUpdate());
-        this.possibleSession.peer.on("connectionchange", () => this.requestUpdate());
+        this.possibleSession.peer.on("hostconnectionstate", () => this.requestUpdate());
     }
 
     @state()
@@ -112,9 +112,9 @@ export class JoinListeningDialog extends ModalDialog {
     }
 
     renderContent() {
-        if (!this.possibleSession || (this.possibleSession.peer as ListeningListener).connectionState === ConnectionState.CONNECTING) {
+        if (!this.possibleSession || (this.possibleSession.peer as ListeningListener).hostConnectionState === ConnectionState.CONNECTING) {
             return this.renderConnecting();
-        } else if ((this.possibleSession.peer as ListeningListener).connectionState === ConnectionState.CONNECTED) {
+        } else if ((this.possibleSession.peer as ListeningListener).hostConnectionState === ConnectionState.CONNECTED) {
             return this.renderConnected();
         } else {
             return this.renderError();
@@ -122,7 +122,7 @@ export class JoinListeningDialog extends ModalDialog {
     }
 
     renderActions() {
-        if ((this.possibleSession?.peer as ListeningListener).connectionState === ConnectionState.ERROR) {
+        if ((this.possibleSession?.peer as ListeningListener).hostConnectionState === ConnectionState.ERROR) {
             return html`
                 <mwc-button label="Try again!" @click=${() => window.location.reload()}></mwc-button>
                 <mwc-button unelevated label="Start new!" @click=${this.dontJoin}></mwc-button>
@@ -130,7 +130,7 @@ export class JoinListeningDialog extends ModalDialog {
         } else {
             return html`
                 <mwc-button label="Don't join" @click=${this.dontJoin}></mwc-button>
-                <mwc-button ?disabled=${!this.possibleSession || (this.possibleSession.peer as ListeningListener).connectionState !== ConnectionState.CONNECTED} unelevated icon="group_add" label="Join listening!" @click=${this.join}></mwc-button>
+                <mwc-button ?disabled=${!this.possibleSession || (this.possibleSession.peer as ListeningListener).hostConnectionState !== ConnectionState.CONNECTED} unelevated icon="group_add" label="Join listening!" @click=${this.join}></mwc-button>
             `
         }
     }
