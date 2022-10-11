@@ -1,10 +1,9 @@
 import { MediaSession } from "@jofr/capacitor-media-session";
 
 import { Events } from "../util/events";
-import { SyncedListeningState } from "./synced_state";
 import { ListeningHost, ListeningListener } from "./peer";
-import { AudioUri, ListeningState, PlaybackState } from "./state";
-import { AudioInfo } from "../metadata/types";
+import { SyncableListeningState, PlaybackState, ListeningState, StateSubscriptionFunction } from "./state";
+import { AudioInfo, AudioUri } from "../metadata/types";
 import { AudioPlayer } from "../player/audio_player";
 import { logger } from "../util/logger";
 import { state } from "lit/decorators";
@@ -15,7 +14,7 @@ export type ListenerInfo = {
 }
 
 export class ListeningSession extends Events {
-    constructor(private internalState: SyncedListeningState, public peer: ListeningHost | ListeningListener) {
+    constructor(private internalState: SyncableListeningState, public peer: ListeningHost | ListeningListener) {
         super();
 
         MediaSession.setActionHandler({ action: "play" }, () => this.togglePlay("play"));
@@ -32,21 +31,21 @@ export class ListeningSession extends Events {
     }
 
     static CreateHost() {
-        const state = new SyncedListeningState();
+        const state = new SyncableListeningState();
         const host = new ListeningHost(state);
 
         return new ListeningSession(state, host);
     }
 
     static CreateListener(hostId: string) {
-        const state = new SyncedListeningState();
+        const state = new SyncableListeningState();
         const listener = new ListeningListener(hostId, state);
 
         return new ListeningSession(state, listener);
     }
 
     destroy() {
-        this.peer.destroy();
+        //this.peer.destroy(); TODO
     }
 
     transformToHost() {
@@ -106,7 +105,7 @@ export class ListeningSession extends Events {
             return;
         }
 
-        this.internalState.applyChange((state: ListeningState) => {
+        this.internalState.applyLocalChange((state: ListeningState) => {
             state.playlist.push(audio);
         });
 
@@ -116,7 +115,7 @@ export class ListeningSession extends Events {
     }
 
     removeAudio(audio: AudioUri) {
-        this.internalState.applyChange((state: ListeningState) => {
+        this.internalState.applyLocalChange((state: ListeningState) => {
             state.playlist.splice(state.playlist.indexOf(audio), 1);
         });
     }
@@ -131,7 +130,7 @@ export class ListeningSession extends Events {
             return;
         }
 
-        this.internalState.applyChange((state: ListeningState) => {
+        this.internalState.applyLocalChange((state: ListeningState) => {
             state.playback.currentAudio = audio;
             state.playback.audioTime = 0;
             state.playback.referenceTime = Date.now();
@@ -139,7 +138,7 @@ export class ListeningSession extends Events {
     }
 
     togglePlay(playState?: "play" | "pause") {
-        this.internalState.applyChange((state: ListeningState) => {
+        this.internalState.applyLocalChange((state: ListeningState) => {
             state.playback.paused = playState ? (playState === "pause" ? true : false) : !state.playback.paused;
             state.playback.audioTime = this.player.currentTime;
             state.playback.referenceTime = Date.now();
@@ -147,7 +146,7 @@ export class ListeningSession extends Events {
     }
 
     seek(time: number) {
-        this.internalState.applyChange((state: ListeningState) => {
+        this.internalState.applyLocalChange((state: ListeningState) => {
             state.playback.audioTime = time;
             state.playback.referenceTime = Date.now();
         });
@@ -199,7 +198,7 @@ export class ListeningSession extends Events {
         }
     }
 
-    subscribe(paths: string[], callback: Function) {
+    subscribe(paths: string[], callback: StateSubscriptionFunction) {
         this.internalState.subscribe(paths, callback);
     }
 

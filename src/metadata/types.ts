@@ -1,12 +1,14 @@
+export type AudioUri = string;
+
 export type CoverInfo = {
-    url?: string,
+    url?: AudioUri,
     dataUrl?: string,
     objectUrl?: string,
     format?: string
 }
 
 export type AudioInfo = {
-    uri: string,
+    uri: AudioUri,
     title: string,
     artist: string,
     album: string,
@@ -17,7 +19,7 @@ export type AudioInfo = {
 export type PodcastEpisodes = AudioInfo[];
 
 export type PodcastInfo = {
-    uri: string,
+    uri: AudioUri,
     title: string,
     artist: string,
     cover?: CoverInfo

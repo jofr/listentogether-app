@@ -6,14 +6,32 @@ import { createInvitationUrl } from "../util/util";
 import { SignalingConnection, SignalingMessage } from "../webrtc/signaling_connection";
 import { PeerId, PeerConnection, CallerPeerConnection, CalleePeerConnection, PeerConnectionOptions } from "../webrtc/peer_connection";
 import { ListeningState } from "./state";
-import { SyncedListeningState, SyncMessage } from "./synced_state";
-import { AudioInfo } from "../metadata/types";
+import { SyncableListeningState, StateSyncMessage } from "./state";
+import { AudioInfo, AudioUri } from "../metadata/types";
 
 import config from "../../config.json";
+
+export { PeerId } from "../webrtc/peer_connection";
 
 export enum ConnectionState {
     CONNECTING, CONNECTED, CLOSED, ERROR
 }
+
+type AudioInfoRequestSyncMessage = {
+    type: "audioinforequest",
+    data: AudioUri
+}
+
+type AudioInfoSyncMessage = {
+    type: "audioinfo",
+    data: AudioInfo
+}
+
+type MetadataSyncMessage =
+    AudioInfoRequestSyncMessage | AudioInfoSyncMessage;
+
+type SyncMessage =
+    StateSyncMessage | MetadataSyncMessage;
 
 /**
  * A peer of a listening (which is the virtual room in which several peers
@@ -27,17 +45,17 @@ export enum ConnectionState {
  * using a client/server topology where the {@link ListeningHost} (always the
  * initiator of the listening) updates the other {@link ListeningListener} peers
  * (which might request updates to the state from the host, but the host
- * ultimately decides if those are allowed and will be replicated from the host
- * to the other listeners).
+ * ultimately decides if those are allowed and will then be replicated from the
+ * host to the other listeners).
  */
 export class ListeningPeer extends Events {
     readonly id: PeerId = nanoid();
     private signalingConnection: SignalingConnection;
     protected acceptIncomingConnections = true;
     protected peerConnections: Map<PeerId, PeerConnection> = new Map<PeerId, PeerConnection>();
-    protected state: SyncedListeningState;
+    protected state: SyncableListeningState;
 
-    constructor(state: SyncedListeningState) {
+    constructor(state: SyncableListeningState) {
         super();
 
         this.state = state;
@@ -93,7 +111,7 @@ export class ListeningPeer extends Events {
 
     protected async syncMessage(connection: PeerConnection, message: SyncMessage) {
         if (message.type === "audioinforequest") {
-            const audioInfo = await window.metadataCache.getAudioInfo(message.data.uri);
+            const audioInfo = await window.metadataCache.getAudioInfo(message.data);
             if (audioInfo !== null) {
                 connection.sendMessage({
                     type: "audioinfo",
@@ -103,22 +121,19 @@ export class ListeningPeer extends Events {
         }
     }
 
-    protected sendSyncToPeers(type: string, peers?: PeerId[]) {
+    protected sendSyncMessageToPeers(message: SyncMessage, peers?: PeerId[]) {
         const connections = peers === undefined
                           ? this.peerConnections.values()
                           : Array.from(this.peerConnections.values()).filter(c => peers.includes(c.remoteId));
 
         for (const connection of connections) {
-            connection.sendMessage({
-                type: type,
-                data: this.state[type]
-            });
+            connection.sendMessage(message);
         }
     }
 }
 
 export class ListeningHost extends ListeningPeer {
-    constructor(state: SyncedListeningState) {
+    constructor(state: SyncableListeningState) {
         super(state);
 
         // We cannot make any assumptions about the state used to construct a
@@ -127,41 +142,44 @@ export class ListeningHost extends ListeningPeer {
         // listening to the playlist even though the connection to the original
         // host has been lost). So we need to make sure that the listeners
         // property of the host is correctly initialized here.
-        this.state.applyChange((state: ListeningState) => {
+        this.state.applyLocalChange((state: ListeningState) => {
             state.listeners = [];
             state.listeners.push(this.id);
         });
 
         this.on("connection", this.listenerConnected);
 
-        // Whenever part of the state changes send an according sync message to
-        // all connected peers
-        this.state.subscribe(["listeners"], () => this.sendSyncToPeers("listeners"));
-        this.state.subscribe(["playlist"], () => this.sendSyncToPeers("playlist"));
-        this.state.subscribe(["playback"], () => this.sendSyncToPeers("playback"));
+        // Whenever part of the state changes locally send the according sync
+        // message to all connected peers
+        this.state.on("syncmessage", (message: StateSyncMessage) => this.sendSyncMessageToPeers(message));
     }
 
     private listenerConnected = (peerConnection: PeerConnection) => {
         // Optimistically assume that a data channel will also succesfully be opened
         // if the connection to the peer is established and already change state
-        // accordingly...
-        this.state.applyChange((state: ListeningState) => {
+        // accordingly (this automatically triggers a listeners sync message) ...
+        this.state.applyLocalChange((state: ListeningState) => {
             state.listeners.push(peerConnection.remoteId);
         });
 
-        // ...and prepare first sync messages to the new peer (which get queued
-        // in the PeerConnection until the data channel is actually ready) to
-        // get it up to speed.
-        this.sendSyncToPeers("listeners", [peerConnection.remoteId]);
-        this.sendSyncToPeers("playlist", [peerConnection.remoteId]);
-        this.sendSyncToPeers("playback", [peerConnection.remoteId]);
+        // ...and prepare playlist and playback sync messages to the new peer
+        // (which get queued in the PeerConnection until the data channel is
+        // actually ready) to get it up to speed.
+        this.sendSyncMessageToPeers({
+            type: "playback",
+            data: this.state.playback
+        }, [peerConnection.remoteId]);
+        this.sendSyncMessageToPeers({
+            type: "playlist",
+            data: this.state.playlist
+        }, [peerConnection.remoteId]);
 
         peerConnection.on("closed", () => this.listenerConnectionClosed(peerConnection.remoteId));
         peerConnection.on("message", (message: SyncMessage) => this.syncMessage(peerConnection, message));
     }
 
     private listenerConnectionClosed(peerId: PeerId) {
-        this.state.applyChange((state: ListeningState) => {
+        this.state.applyLocalChange((state: ListeningState) => {
             const index = state.listeners.indexOf(peerId);
             state.listeners.splice(index, 1);
         });
@@ -177,12 +195,11 @@ export class ListeningListener extends ListeningPeer {
     private resolveAudioInfoRequests: Map<string, Function> = new Map<string, Function>();
     hostConnectionState: ConnectionState = ConnectionState.CONNECTING;
 
-    constructor (hostId: PeerId, state: SyncedListeningState) {
+    constructor (hostId: PeerId, state: SyncableListeningState) {
         super(state);
 
-        console.log("connect to peer", hostId)
+        this.acceptIncomingConnections = false;
         this.connectToPeer(hostId);
-        console.log(this.peerConnections)
         this.hostConnection = this.peerConnections.get(hostId);
 
         this.hostConnection.on("connected", this.hostConnected);
@@ -212,7 +229,7 @@ export class ListeningListener extends ListeningPeer {
         super.syncMessage(connection, message);
 
         if (["playback", "playlist", "listeners"].includes(message.type)) {
-            this.state.applySyncMessage(message);
+            this.state.applySyncMessage(message as StateSyncMessage);
         } else if (message.type === "audioinfo") {
             if (this.resolveAudioInfoRequests.has(message.data.uri)) {
                 this.resolveAudioInfoRequests.get(message.data.uri)(message.data as AudioInfo);
@@ -227,12 +244,14 @@ export class ListeningListener extends ListeningPeer {
 
         this.hostConnection.sendMessage({
             type: "audioinforequest",
-            data: {
-                uri: uri
-            }
+            data: uri
         });
 
         return audioInfoPromise;
+    }
+
+    get hostId(): PeerId {
+        return this.hostConnection.remoteId;
     }
 
     get invitationUrl(): string {
