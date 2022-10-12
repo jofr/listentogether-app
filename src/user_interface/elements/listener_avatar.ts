@@ -48,7 +48,7 @@ export class ListenerAvatar extends LitElement {
         // (this of course looses resolution and not all values are possible
         // because some symbols in that ASCII range are never used for the ID
         // but should be good enough for this purpose)
-        const hex = Array.from(this.id.substring(0, 3)).map(x => Math.floor((x.charCodeAt(0) - 48) * 3.45).toString(16)).join("");
+        const hex = Array.from(this.id.substring(0, 3)).map(x => Math.floor((x.charCodeAt(0) - 48) * 3.45).toString(16).padStart(2, "0")).join("");
 
         // This part (generating two matching colors for gradient) is taken from
         // https://github.com/tobiaslins/avatar/tree/master/src */
