@@ -1,5 +1,3 @@
-import * as musicMetadata from "music-metadata-browser";
-
 import { AudioInfo } from "./types";
 import { catchError, stringToBytes } from "../util/util";
 
@@ -16,8 +14,8 @@ function titleFromUrl(url: string) {
     }
 }
 
-function coverPicture(pictures: musicMetadata.IPicture[]) {
-    const toInternalCover = (cover: musicMetadata.IPicture) => {
+function coverPicture(pictures: any) {
+    const toInternalCover = (cover: any) => {
         const objectUrl = URL.createObjectURL(new Blob([cover.data], { type: cover.format }))
         return {
             url: objectUrl,
@@ -232,7 +230,8 @@ async function extractAudioInfoFromStream(stream: ReadableStream): Promise<Audio
                 reader.cancel();
     
                 if (isAudio) {
-                    const metadata = await musicMetadata.parseBuffer(buffer);
+                    const { parseBuffer } = await import("music-metadata-browser");
+                    const metadata = await parseBuffer(buffer);
                     const audioInfo: AudioInfo = {
                         uri: "",
                         title: metadata.common?.title || "",
