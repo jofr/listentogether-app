@@ -36,12 +36,10 @@ export type ListenerInfo = {
  * operations one would expect from a media session (play, pause, skip, ...) and
  * forwards state change subscriptions to UI elements.
  *
- * Internally it also makes sure that the actual audio player is as close as
- * possible to the desired state and uses the Media Session API of the system
- * (either the Web API or the Android API through the capacitor plugin) to
- * provide metadata about the current audio (e.g. for displaying media
- * notifications) and to react to hardware media keys (or software media keys
- * from a media notification).
+ * Also uses the Media Session API of the system (either the Web API or the
+ * Android API through the capacitor plugin) to provide metadata about the
+ * current audio (e.g. for displaying media notifications) and to react to
+ * hardware media keys (or software media keys from a media notification).
  *
  * A session should always be created using either the static function to create
  * a host ({@link ListeningSession#CreateHost}) or the one to create a listener

@@ -1,14 +1,20 @@
+import { logger } from "../util/logger";
 import { Events } from "../util/events";
 import { AudioPlayer } from "./audio_player";
 import { SyncableListeningState } from "../listening/state";
-import { logger } from "../util/logger";
 
+/**
+ * {@link AudioPlayer} capable of syncing playback to the listening state as
+ * long as the currently playing audio in the state is an audio file that can be
+ * played by a HTMLAudioElement (so at least every audio publicly reachable via
+ * HTTP).
+ */
 export class AudioElementPlayer extends Events implements AudioPlayer {
     private state: SyncableListeningState = null;
     private audioElement: HTMLAudioElement;
-    buffering: boolean = false;
     private audioDurationFromMetadata: number;
     private silenceSrc: string = `${window.location.origin}${window.location.pathname}silence.mp3`;
+    buffering: boolean = false;
 
     constructor() {
         super();
@@ -19,21 +25,17 @@ export class AudioElementPlayer extends Events implements AudioPlayer {
         for (const event of ["timeupdate", "pause", "play", "durationchange", "seeked", "ended"]) {
             this.audioElement.addEventListener(event, () => this.emit(event));
         }
-
         for (const event of ["waiting", "stalled"]) {
             this.audioElement.addEventListener(event, () => {
                 if (!this.buffering) {
-                    console.log("buffering")
                     this.buffering = true;
                     this.emit("buffering");
                 }
             });
         }
-
         for (const event of ["canplay", "canplaythrough"]) {
             this.audioElement.addEventListener(event, () => {
                 if (this.buffering) {
-                    console.log("not buffering")
                     this.buffering = false;
                     this.emit("canplay");
                 }
@@ -105,6 +107,12 @@ export class AudioElementPlayer extends Events implements AudioPlayer {
     }
 
     get duration(): number {
+        // When the audio element loads a new audio file it might take a short
+        // while before the duration information is available (if the browser
+        // still has to load the file). During that timeframe we can use the
+        // information from the metadata cache (if available). As soon as the
+        // duration from the audio element is available we use that because it
+        // is more accurate.
         return Number.isNaN(this.audioElement.duration) ? this.audioDurationFromMetadata : this.audioElement.duration;
     }
 
