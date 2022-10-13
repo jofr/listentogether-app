@@ -41,6 +41,7 @@ export type PeerConnectionOptions = {
     readonly remoteId: PeerId;
     protected signalingConnection: SignalingConnection;
     protected connection: RTCPeerConnection;
+    private hasBeenConnected: boolean = false;
     protected dataChannel: RTCDataChannel | null;
     private messageQueue: string[] = [];
     protected polite: boolean;
@@ -92,7 +93,7 @@ export type PeerConnectionOptions = {
                 data: this.connection.localDescription
             });
         } catch (error) {
-            logger.error("WebRTC negotiation error: ", error);
+            logger.error(`WebRTC negotiation error (for connection ${this.localId}<->${this.remoteId}): `, error);
         } finally {
             this.makingOffer = false;
         }
@@ -109,8 +110,35 @@ export type PeerConnectionOptions = {
 
     private connectionStateChange = async () => {
         if (this.connection.connectionState === "connected") {
-            this.emit("connected");
-        } else if (["closed", "failed", "disconnected"].includes(this.connection.connectionState)) {
+            if (!this.hasBeenConnected) {
+                this.hasBeenConnected = true;
+                logger.debug(`Peer connection (${this.localId}<->${this.remoteId}) connected`);
+                this.emit("connected");
+            } else {
+                logger.debug(`Peer connection (${this.localId}<->${this.remoteId}) reconnected`);
+                this.emit("reconnected");
+            }
+        } else if (this.connection.connectionState === "disconnected") {
+            // TODO: This is either a temporary connection problem (that solves
+            // itself) or the state will eventually transition to "failed". But
+            // it might be useful to make this state available anyways (e.g. for
+            // user interface indications of potential connectivity problems)?
+        } else if (this.connection.connectionState === "failed") {
+            // TODO: Most of the time this will be caused by network changes
+            // (temporarily no connection on mobile, switch from wifi to mobile,
+            // etc.) so there's a good chance the signaling connection is also
+            // down. Restarting directly works anyways because the signaling
+            // connection buffers the messages and eventually delivers them but
+            // if the network changed the candidates might be outdated already,
+            // so maybe it is useful to check the signaling connection here and
+            // postpone the ICE restart until the signaling connection is back
+            // again?
+            logger.debug(`Peer connection (${this.localId}<->${this.remoteId}) failed, restarting ICE`);
+            this.connection.restartIce();
+            // TODO: If restarting ICE is not successful after some time the
+            // peer connection should be closed
+        } else if (this.connection.connectionState === "closed") {
+            logger.debug(`Peer connection (${this.localId}<->${this.remoteId}) closed`);
             this.emit("closed");
         }
     }
@@ -143,12 +171,12 @@ export type PeerConnectionOptions = {
                     await this.connection.addIceCandidate(message.data);
                 } catch (error) {
                     if (!this.ignoreOffer) {
-                        logger.error("WebRTC negotiation error: ", error);
+                        logger.error(`WebRTC negotiation error (for connection ${this.localId}<->${this.remoteId}): `, error);
                     }
                 }
             }
         } catch (error) {
-            logger.error("WebRTC negotiation error: ", error);
+            logger.error(`WebRTC negotiation error (for connection ${this.localId}<->${this.remoteId}): `, error);
         }
     }
 
@@ -160,7 +188,7 @@ export type PeerConnectionOptions = {
             while (this.messageQueue.length > 0) {
                 const message = this.messageQueue.shift();
                 this.dataChannel.send(message);
-                logger.log(`Send enqueued message to ${this.remoteId}: `, JSON.parse(message));
+                logger.debug(`Sending enqueued message on data channel (${this.localId}<->${this.remoteId}): `, JSON.parse(message));
             }
             this.emit("datachannelopen");
         });
@@ -170,17 +198,17 @@ export type PeerConnectionOptions = {
     private receiveMessage = (event: MessageEvent) => {
         try {
             const message = JSON.parse(event.data);
-            logger.log(`Received messag from ${this.remoteId}: `, message);
+            logger.debug(`Received messag on data channel (${this.localId}<->${this.remoteId}): `, message);
             this.emit("message", message);
         } catch (error) {
-            logger.warn(`Received malformed message from ${this.remoteId}: `, event.data);
+            logger.warn(`Received malformed message on data channel (${this.localId}<->${this.remoteId}): `, event.data);
         }
     }
 
     sendMessage(message: any) {
         if (this.dataChannel && this.dataChannel.readyState === "open") {
             this.dataChannel.send(JSON.stringify(message));
-            logger.log(`Send message to ${this.remoteId}: `, message);
+            logger.debug(`Sending message on data channel (${this.localId}<->${this.remoteId}): `, message);
         } else {
             this.messageQueue.push(JSON.stringify(message));
         }
