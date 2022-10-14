@@ -211,6 +211,7 @@ export type PeerConnectionOptions = {
             logger.debug(`Sending message on data channel (${this.localId}<->${this.remoteId}): `, message);
         } else {
             this.messageQueue.push(JSON.stringify(message));
+            logger.debug(`Queued message for data channel (${this.localId}<->${this.remoteId}): `, message);
         }
     }
 }
