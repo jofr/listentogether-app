@@ -56,6 +56,7 @@ export type SignalingConnectionOptions = {
         });
         this.signalingSocket.addEventListener("message", this.receiveMessage);
         this.signalingSocket.addEventListener("close", (event: CloseEvent) => {
+            const normalClosure = (event.code === 1000);
             // Codes 4000-4002 mean that id is either taken, missing or invalid
             const idError = [4000, 4001, 4002].includes(event.code);
             const idTakenError = (event.code === 4000);
@@ -77,6 +78,8 @@ export type SignalingConnectionOptions = {
                 setTimeout(() => {
                     this.connectToSignalingServer();
                 }, 15000);
+            } else if (normalClosure) {
+                logger.debug(`Signaling connection for peer ${this.peerId} closed`);
             } else {
                 logger.error(`Signaling connection for peer ${this.peerId} closed (code ${event.code}): `, event.reason);
             }
@@ -107,5 +110,10 @@ export type SignalingConnectionOptions = {
             this.messageQueue.push(JSON.stringify(message));
             logger.log(`Queued signaling message (for peer ${this.peerId}): `, message);
         }
+    }
+
+    close() {
+        // Set code to 1000 (normal closure) to not trigger reconnect
+        this.signalingSocket.close(1000);
     }
 }

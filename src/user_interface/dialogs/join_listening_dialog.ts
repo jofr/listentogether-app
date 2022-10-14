@@ -65,6 +65,7 @@ export class JoinListeningDialog extends ModalDialog {
 
     private async join() {
         if (this.session) {
+            window.session.closePeerConnections();
             window.session = this.session;
             this.possibleSession = null;
         }

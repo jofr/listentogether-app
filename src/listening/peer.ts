@@ -130,6 +130,13 @@ export class ListeningPeer extends Events {
             connection.sendMessage(message);
         }
     }
+
+    closeConnections() {
+        for (const peerConnection of this.peerConnections.values()) {
+            peerConnection.close();
+        }
+        this.signalingConnection.close();
+    }
 }
 
 export class ListeningHost extends ListeningPeer {

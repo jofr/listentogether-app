@@ -95,13 +95,11 @@ export class ListeningSession extends Events implements StateSubscribable {
     // peers) and we can control that playback (if that was not allowed for
     // listeners before)
     transformToHost() {
+        // Signaling connection might still be open so close it cleanly
+        this.peer.closeConnections();
         this.peer = new ListeningHost(this.state);
         window.session = window.session; /* TODO: triggers updates, solve this in a better way */
         this.emit("listenertohost");
-    }
-
-    destroy() {
-        //this.peer.destroy(); TODO
     }
 
     on(eventName: string | string[], eventHandler: (...args: any[]) => void) {
@@ -360,5 +358,9 @@ export class ListeningSession extends Events implements StateSubscribable {
 
     get invitationUrl(): string {
         return (this.peer as ListeningHost | ListeningListener).invitationUrl;
+    }
+
+    closePeerConnections() {
+        this.peer.closeConnections();
     }
 }

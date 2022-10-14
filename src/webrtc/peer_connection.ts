@@ -214,6 +214,10 @@ export type PeerConnectionOptions = {
             logger.debug(`Queued message for data channel (${this.localId}<->${this.remoteId}): `, message);
         }
     }
+
+    close() {
+        this.connection.close();
+    }
 }
 
 export class CallerPeerConnection extends PeerConnection {
