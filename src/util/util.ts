@@ -30,6 +30,7 @@ export function clamp(value: number, min: number, max: number) {
     return Math.min(Math.max(value, min), max);
 }
 
+// TODO: Use structuredClone() instead (as soon as widely supported by browsers)
 export function deepCopy(x: any) {
     return JSON.parse(JSON.stringify(x));
 }
