@@ -221,7 +221,6 @@ export class ListeningListener extends ListeningPeer {
 
     private hostConnectionClosed = (): void => {
         this.hostConnectionState = ConnectionState.CLOSED;
-        window.session.transformToHost();
         this.emit("hostconnectionstate");
     }
 

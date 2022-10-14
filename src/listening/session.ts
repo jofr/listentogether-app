@@ -1,7 +1,7 @@
 import { MediaSession } from "@jofr/capacitor-media-session";
 
 import { Events } from "../util/events";
-import { ListeningHost, ListeningListener, ListeningPeer } from "./peer";
+import { ConnectionState, ListeningHost, ListeningListener, ListeningPeer } from "./peer";
 import { SyncableListeningState, ListeningState, StateSubscribable, StateSubscriptionFunction } from "./state";
 import { AudioUri, CoverInfo } from "../metadata/types";
 import { AudioPlayer } from "../player/audio_player";
@@ -73,7 +73,20 @@ export class ListeningSession extends Events implements StateSubscribable {
         const state = new SyncableListeningState();
         const listener = new ListeningListener(hostId, state);
 
-        return new ListeningSession(state, listener);
+        const listeningSession = new ListeningSession(state, listener);
+
+        // Transform this listener session to a host session if the conection to
+        // the host is lost (host connection state does not change to closed
+        // during temporary connection problems, only if the connection is
+        // closed by the host or – as far as we can tell – all reconnection
+        // attempts failed and the connection is permanently lost)
+        listener.on("hostconnectionstate", () => {
+            if (listener.hostConnectionState === ConnectionState.CLOSED) {
+                listeningSession.transformToHost();
+            }
+        });
+
+        return listeningSession;
     }
 
     // If we are a listener and loose the connection to the host we transform
