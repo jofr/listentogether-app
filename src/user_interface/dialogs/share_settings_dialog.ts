@@ -27,13 +27,11 @@ export class ShareSettingsDialog extends ModalDialog {
     private sessionController = new SessionController(this);
 
     private endListening() {
-        window.session.closePeerConnections();
         window.session = ListeningSession.CreateHost();
         this.hide();
     }
 
     private leaveListening() {
-        window.session.closePeerConnections();
         window.session = ListeningSession.CreateHost();
         this.hide();
     }

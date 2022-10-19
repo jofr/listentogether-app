@@ -98,7 +98,7 @@ export class ListeningSession extends Events implements StateSubscribable {
         // Signaling connection might still be open so close it cleanly
         this.peer.closeConnections();
         this.peer = new ListeningHost(this.state);
-        window.session = window.session; /* TODO: triggers updates, solve this in a better way */
+        window.dispatchEvent(new CustomEvent("sessionchange")); /* TODO: triggers updates, solve this in a better way */
         this.emit("listenertohost");
     }
 

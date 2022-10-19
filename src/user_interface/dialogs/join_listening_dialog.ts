@@ -65,7 +65,6 @@ export class JoinListeningDialog extends ModalDialog {
 
     private async join() {
         if (this.session) {
-            window.session.closePeerConnections();
             window.session = this.session;
             this.possibleSession = null;
         }
@@ -74,7 +73,7 @@ export class JoinListeningDialog extends ModalDialog {
 
     private dontJoin() {
         if (this.session) {
-            /* TODO: also disconnect/destroy the object correctly */
+            this.possibleSession.closePeerConnections();
             this.possibleSession = null;
         }
         super.hide();

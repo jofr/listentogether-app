@@ -70,6 +70,11 @@ Object.defineProperty(window, "session", {
     },
 
     set: function(session: ListeningSession) {
+        if (session === listeningSession) {
+            return;
+        }
+
+        listeningSession.closePeerConnections();
         listeningSession = session;
         session.on("listenertohost", () => { (document.querySelector("#listener-to-host-snackbar") as any).show(); });
         window.player.listeningState = listeningSession.listeningState;
