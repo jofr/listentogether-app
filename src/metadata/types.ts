@@ -13,7 +13,10 @@ export type AudioInfo = {
     artist: string,
     album: string,
     duration: number,
-    cover?: CoverInfo
+    cover?: {
+        original: CoverInfo,
+        thumbnail: CoverInfo
+    }
 }
 
 export type PodcastEpisodes = AudioInfo[];
@@ -22,5 +25,8 @@ export type PodcastInfo = {
     uri: AudioUri,
     title: string,
     artist: string,
-    cover?: CoverInfo
+    cover?: {
+        original: CoverInfo,
+        thumbnail: CoverInfo
+    }
 }

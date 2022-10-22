@@ -23,16 +23,17 @@ class MetadataCache {
     private podcastInfoCache: Map<string, Promise<PodcastInfo | null>> = new Map<string, Promise<PodcastInfo | null>>();
 
     private async downloadPodcastInfo(uri: string): Promise<PodcastInfo | null> {
-        const [error, response] = await catchError(fetch(`${config.podcastServiceUrl}/podcasts/byurl/?url=${uri}`));
+        const [error, response] = await catchError(fetch(`${config.podcastServiceUrl}/podcasts/${encodeURIComponent(uri)}`));
         if (!error && (response as Response).ok) {
-            const result = await (response as Response).json();
-            if (result.feed) {
+            const podcast = await (response as Response).json();
+            if (podcast) {
                 return {
-                    uri: result.feed.url,
-                    title: result.feed.title,
-                    artist: result.feed.author,
+                    uri: podcast.url,
+                    title: podcast.title,
+                    artist: podcast.author,
                     cover: {
-                        url: result.feed.image
+                        original: { url: podcast.image.original },
+                        thumbnail: { url: podcast.image.thumbnail }
                     }
                 }
             }
@@ -45,11 +46,11 @@ class MetadataCache {
         
         const podcastTitle = await this.getPodcastInfo(uri).then(info => info?.title ? info.title : "");
         const podcastArtist = await this.getPodcastInfo(uri).then(info => info?.title ? info.title : "");
-        const [error, response] = await catchError(fetch(`${config.podcastServiceUrl}/episodes/byurl/?url=${uri}&max=${max}`));
+        const [error, response] = await catchError(fetch(`${config.podcastServiceUrl}/podcasts/${encodeURIComponent(uri)}/episodes?max=${max}`));
         if (!error && (response as Response).ok) {
-            const result = await (response as Response).json();
-            if (result && result.count > 0 && result.items) {
-                for (const episode of result.items) {
+            const episodes = await (response as Response).json();
+            if (Array.isArray(episodes) && episodes.length > 0) {
+                for (const episode of episodes) {
                     uris = uris.concat(episode.enclosureUrl);
 
                     this.audioInfoCache.set(episode.enclosureUrl, new Promise(resolve => resolve({
@@ -59,7 +60,8 @@ class MetadataCache {
                         album: podcastTitle,
                         duration: episode.duration,
                         cover: {
-                            url: episode.image !== "" ? episode.image : episode.feedImage
+                            original: { url: episode.image.original !== "" ? episode.image.original : episode.feedImage.original },
+                            thumbnail: { url: episode.image.thumbnail !== "" ? episode.image.thumbnail : episode.feedImage.thumbnail }
                         }
                     })));
                 }
@@ -112,19 +114,20 @@ class MetadataCache {
     async searchPodcasts(query: string): Promise<PodcastInfo[]> {
         let podcasts = [];
 
-        const [error, response] = await catchError(fetch(`${config.podcastServiceUrl}/podcasts/search/?query=${query}`));
+        const [error, response] = await catchError(fetch(`${config.podcastServiceUrl}/podcasts?search=${query}`));
         if (!error && (response as Response).ok) {
-            const result = await (response as Response).json();
-            if (result.count > 0) {
-                for (const podcast of result.feeds) {
+            const podcasts = await (response as Response).json();
+            if (Array.isArray(podcasts) && podcasts.length > 0) {
+                for (const podcast of podcasts) {
                     const info = {
                         uri: podcast.url,
                         title: podcast.title,
                         artist: podcast.author,
                         cover: {
-                            url: podcast.image
+                            original: { url: podcast.image.original },
+                            thumbnail: { url: podcast.image.thumbnail }
                         }
-                    };
+                    }
 
                     this.podcastInfoCache.set(podcast.uri, new Promise(resolve => resolve(info)));
                     podcasts.push(info);
