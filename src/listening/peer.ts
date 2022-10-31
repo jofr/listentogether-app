@@ -74,7 +74,8 @@ export class ListeningPeer extends Events {
             stunHost: config.stunHost,
             stunPort: config.stunPort,
             turnHost: config.turnHost,
-            turnPort: config.turnPort
+            turnPort: config.turnPort,
+            turnCredentialsRestApiUrl: config.turnCredentialsRestApiUrl
         }
     }
 

@@ -40,7 +40,7 @@ export type SignalingConnectionOptions = {
         super();
 
         this.peerId = options.peerId;
-        this.signalingUrl = `wss://${options.host}:${options.port}?version=1&id=${this.peerId}`;
+        this.signalingUrl = `wss://${options.host}:${options.port}/signaling?version=1&id=${this.peerId}`;
         this.connectToSignalingServer();
     }
 

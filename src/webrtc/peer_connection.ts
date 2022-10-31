@@ -1,6 +1,6 @@
 import { Events } from "../util/events";
 import { logger } from "../util/logger";
-import { SignalingConnection } from "./signaling_connection";
+import { SignalingConnection, SignalingMessage } from "./signaling_connection";
 
 export type PeerId = string;
 
@@ -10,7 +10,10 @@ export type PeerConnectionOptions = {
     stunHost: string,
     stunPort: number,
     turnHost: string,
-    turnPort: number
+    turnPort: number,
+    turnUsername?: string,
+    turnPassword?: string,
+    turnCredentialsRestApiUrl?: string
 }
 
 /**
@@ -39,8 +42,13 @@ export type PeerConnectionOptions = {
  export class PeerConnection extends Events {
     readonly localId: PeerId;
     readonly remoteId: PeerId;
+    protected turnHost: string;
+    protected turnPort: number;
+    protected stunHost: string;
+    protected stunPort: number;
     protected signalingConnection: SignalingConnection;
-    protected connection: RTCPeerConnection;
+    private signalingMessageBuffer: SignalingMessage[] = [];
+    protected connection: RTCPeerConnection | null = null;
     private hasBeenConnected: boolean = false;
     protected dataChannel: RTCDataChannel | null;
     private messageQueue: string[] = [];
@@ -55,30 +63,74 @@ export type PeerConnectionOptions = {
         this.localId = options.signalingConnection.peerId;
         this.remoteId = options.remoteId;
 
-        // Need to specify two URIs for the TURN server (with "?transport=tcp"
-        // and "?transport=udp", see RFC 5928) to gather both UDP client-server
-        // and TCP client-server ICE candidates (at least if there are no SRV
-        // resource records as defined in RFC 5928 for that TURN server).
-        // Otherwise we get only UDP candidates per default, which makes WebRTC
-        // connections impossible if the used browser is set to mode 4 of the
-        // WebRTC IP handling policy (as defined in RFC 8828), which e.g.
-        // corresponds to the option "Disable non-proxied UDP" in most Chromium
-        // based browsers. If the browser is in that privacy mode and no proxy
-        // capable of UDP traffic is available the only way to establish a
-        // connection is using a TCP connection to the TURN server (so we need
-        // to make sure that we are gathering those candidates).
-        this.connection = new RTCPeerConnection({
+        if (options.turnCredentialsRestApiUrl) {
+            fetch(options.turnCredentialsRestApiUrl).then(response => response.json()).then((credentials) => {
+                options.turnUsername = credentials.username;
+                options.turnPassword = credentials.password;
+
+                this.peerConnectionSetup(options);
+
+                while (this.signalingMessageBuffer.length > 0) {
+                    const message = this.signalingMessageBuffer.shift();
+                    this.signalingMessage(message);
+                }
+
+                setInterval(() => {
+                    fetch(options.turnCredentialsRestApiUrl).then(response => response.json()).then((credentials) => {
+                        options.turnUsername = credentials.username;
+                        options.turnPassword = credentials.password;
+                        this.connection.setConfiguration(this.getConfiguration(options));
+                    });
+                }, (credentials.ttl - 120) * 1000);
+            });
+        } else {
+            this.peerConnectionSetup(options);
+        }
+        
+        this.signalingConnection = options.signalingConnection;
+        this.signalingConnection.on(`messagefrom:${this.remoteId}`, this.signalingMessage);
+    }
+
+    protected getConfiguration(options: PeerConnectionOptions) {
+        return {
             "iceServers": [
-                { urls: `stun:${options.stunHost}:${options.stunPort}` },
-                { urls: [`turn:${options.turnHost}:${options.turnPort}?transport=tcp`, `turn:${options.turnHost}:${options.turnPort}?transport=udp`], username: 'listentogether', credential: 'V6O3hlU2OgKne4Ua7Z6IjI8jX9jnEG4sk1jS168Q' }
+                {
+                    urls: `stun:${options.stunHost}:${options.stunPort}`
+                },
+                {
+                    // Need to specify two URIs for the TURN server (with
+                    // "?transport=tcp" and "?transport=udp", see RFC 5928) to
+                    // gather both UDP client-server and TCP client-server ICE
+                    // candidates (at least if there are no SRV resource records
+                    // as defined in RFC 5928 for that TURN server). Otherwise
+                    // we get only UDP candidates per default, which makes
+                    // WebRTC connections impossible if the used browser is set
+                    // to mode 4 of the WebRTC IP handling policy (as defined in
+                    // RFC 8828), which e.g. corresponds to the option "Disable
+                    // non-proxied UDP" in most Chromium based browsers. If the
+                    // browser is in that privacy mode and no proxy capable of
+                    // UDP traffic is available the only way to establish a
+                    // connection is using a TCP connection to the TURN server
+                    // (so we need to make sure that we are gathering those
+                    // candidates).
+                    urls: [
+                        `turn:${options.turnHost}:${options.turnPort}?transport=tcp`,
+                        `turn:${options.turnHost}:${options.turnPort}?transport=udp`,
+                        `turns:${options.turnHost}:${options.turnPort}`
+                    ],
+                    username: options.turnUsername,
+                    credential: options.turnPassword
+                }
             ]
-        });
+        }
+    }
+
+    protected peerConnectionSetup(options: PeerConnectionOptions) {
+        this.connection = new RTCPeerConnection(this.getConfiguration(options));
+
         this.connection.addEventListener("negotiationneeded", this.negotiationNeeded);
         this.connection.addEventListener("icecandidate", this.iceCandidate);
         this.connection.addEventListener("connectionstatechange", this.connectionStateChange);
-
-        this.signalingConnection = options.signalingConnection;
-        this.signalingConnection.on(`messagefrom:${this.remoteId}`, this.signalingMessage);
     }
 
     private negotiationNeeded = async () => {
@@ -144,6 +196,11 @@ export type PeerConnectionOptions = {
     }
 
     private signalingMessage = async (message: any) => {
+        if (!this.connection) {
+            this.signalingMessageBuffer.push(message);
+            return;
+        }
+
         try {
             if (message.type === "description") {
                 const readyForOffer = !this.makingOffer && (this.connection.signalingState === "stable" || this.isSettingRemoteAnswerPending);
@@ -216,7 +273,7 @@ export type PeerConnectionOptions = {
     }
 
     close() {
-        this.connection.close();
+        this.connection?.close();
     }
 }
 
@@ -225,6 +282,11 @@ export class CallerPeerConnection extends PeerConnection {
         super(options);
 
         this.polite = false;
+    }
+
+    protected peerConnectionSetup(options: PeerConnectionOptions): void {
+        super.peerConnectionSetup(options);
+
         this.dataChannel = this.connection.createDataChannel("data");
         this.dataChannelSetup();
     }
@@ -235,6 +297,11 @@ export class CalleePeerConnection extends PeerConnection {
         super(options);
 
         this.polite = true;
+    }
+
+    protected peerConnectionSetup(options: PeerConnectionOptions): void {
+        super.peerConnectionSetup(options);
+
         this.connection.addEventListener("datachannel", (event: RTCDataChannelEvent) => {
             this.dataChannel = event.channel;
             this.dataChannelSetup();
