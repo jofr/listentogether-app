@@ -4,6 +4,7 @@
     "stunPort": 3478,
     "turnHost": "listentogether.nsupdate.info",
     "turnPort": 3478,
+    "turnCredentialsRestApiUrl": "https://listentogether.nsupdate.info/turn/credentials",
     "signalingHost": "listentogether.nsupdate.info",
-    "signalingPort": 5001
+    "signalingPort": 443
 }
