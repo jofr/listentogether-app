@@ -33,7 +33,8 @@ class MetadataCache {
                     artist: podcast.author,
                     cover: {
                         original: { url: podcast.image.original },
-                        thumbnail: { url: podcast.image.thumbnail }
+                        thumbnail: { url: podcast.image.thumbnail },
+                        large: { url: podcast.image.large }
                     }
                 }
             }
@@ -61,7 +62,8 @@ class MetadataCache {
                         duration: episode.duration,
                         cover: {
                             original: { url: episode.image.original !== "" ? episode.image.original : episode.feedImage.original },
-                            thumbnail: { url: episode.image.thumbnail !== "" ? episode.image.thumbnail : episode.feedImage.thumbnail }
+                            thumbnail: { url: episode.image.thumbnail !== "" ? episode.image.thumbnail : episode.feedImage.thumbnail },
+                            large: { url: episode.image.large !== "" ? episode.image.large : episode.feedImage.large }
                         }
                     })));
                 }
@@ -112,7 +114,7 @@ class MetadataCache {
     }
 
     async searchPodcasts(query: string): Promise<PodcastInfo[]> {
-        let podcasts = [];
+        let results = [];
 
         const [error, response] = await catchError(fetch(`${config.podcastServiceUrl}/podcasts?search=${query}`));
         if (!error && (response as Response).ok) {
@@ -124,18 +126,19 @@ class MetadataCache {
                         title: podcast.title,
                         artist: podcast.author,
                         cover: {
-                            original: { url: podcast.image.original },
-                            thumbnail: { url: podcast.image.thumbnail }
+                            original: { url: podcast.image?.original },
+                            thumbnail: { url: podcast.image?.thumbnail },
+                            large: { url: podcast.image?.large }
                         }
                     }
 
                     this.podcastInfoCache.set(podcast.uri, new Promise(resolve => resolve(info)));
-                    podcasts.push(info);
+                    results.push(info);
                 }
             }
         }
 
-        return podcasts;
+        return results;
     }
 }
 

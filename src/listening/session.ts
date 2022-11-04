@@ -20,7 +20,11 @@ export type PromisedAudioInfo = {
     artist: Promise<string>,
     album: Promise<string>,
     duration: Promise<number>,
-    cover: Promise<CoverInfo>
+    cover: {
+        original: Promise<CoverInfo>,
+        thumbnail: Promise<CoverInfo>,
+        large: Promise<CoverInfo>
+    }
 }
 
 export type SessionPlaylist = PromisedAudioInfo[];
@@ -192,13 +196,21 @@ export class ListeningSession extends Events implements StateSubscribable {
             artwork: []
         }
         if (audioInfo.cover) {
-            mediaMetadata.artwork = [
-                {
-                    src: audioInfo.cover.url || audioInfo.cover.objectUrl || audioInfo.cover.dataUrl,
-                    sizes: "256x256", // TODO: actual size
-                    type: "image/png" // TODO: actual file format
-                }
-            ]
+            const pushCover = (cover: CoverInfo, sizes: string) => {
+                mediaMetadata.artwork.push({
+                    src: cover.url || cover.objectUrl || cover.dataUrl,
+                    sizes: sizes,
+                    type: cover.format
+                });
+            }
+
+            if (audioInfo.cover.thumbnail) {
+                pushCover(audioInfo.cover.thumbnail, "100x100")
+            }
+
+            if (audioInfo.cover.large) {
+                pushCover(audioInfo.cover.large, "1000x1000");
+            }
         }
         MediaSession.setMetadata(mediaMetadata);
     }
@@ -307,7 +319,11 @@ export class ListeningSession extends Events implements StateSubscribable {
                 artist: audioInfo.then(info => info.artist),
                 album: audioInfo.then(info => info.album),
                 duration: duration,
-                cover: audioInfo.then(info => info.cover)
+                cover: {
+                    original: audioInfo.then(info => info.cover.original),
+                    thumbnail: audioInfo.then(info => info.cover.thumbnail),
+                    large: audioInfo.then(info => info.cover.large)
+                }
             });
         }
 

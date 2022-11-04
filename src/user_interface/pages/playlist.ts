@@ -174,9 +174,9 @@ export class EditablePlaylist extends AppPage {
                 <mwc-list @touchmove=${this.touchMove} @touchend=${this.touchEnd}>
                     ${repeat(audios, (audio) => audio.uri, (audio) => html`
                         <mwc-list-item @click=${() => { this.selectAudio(audio.uri) }} ?activated=${audio.uri == session.playback.currentAudio} ?selected=${audio.uri == session.playback.currentAudio} twoline graphic="medium" hasMeta data-uri="${audio.uri}">
-                            <span>${until(window.metadataCache.getAudioInfo(audio.uri).then(audio => audio.title), html`<loading-placeholder characters="15"></loading-placeholder>`)}</span>
-                            <span slot="secondary">${until(window.metadataCache.getAudioInfo(audio.uri).then(audio => audio.album), html`<loading-placeholder characters="10"></loading-placeholder>`)}</span>
-                            <img slot="graphic" src="${until(window.metadataCache.getAudioInfo(audio.uri).then(audio => audio.cover?.url ? audio.cover.url : defaultCoverObjectUrl), defaultCoverObjectUrl)}" />
+                            <span>${until(audio.title, html`<loading-placeholder characters="15"></loading-placeholder>`)}</span>
+                            <span slot="secondary">${until(audio.album, html`<loading-placeholder characters="10"></loading-placeholder>`)}</span>
+                            <img slot="graphic" src="${until(audio.cover.thumbnail.then(thumbnail => thumbnail.url ? thumbnail.url : defaultCoverObjectUrl), defaultCoverObjectUrl)}" />
                             <mwc-icon slot="meta" @touchstart=${(event: TouchEvent) => this.touchStart(event)}>drag_indicator</mwc-icon>
                         </mwc-list-item>
                     `)}
@@ -197,9 +197,9 @@ export class EditablePlaylist extends AppPage {
                 <mwc-list noninteractive>
                     ${repeat(audios, (audio) => audio.uri, (audio) => html`
                         <mwc-list-item ?activated=${audio.uri == session.playback.currentAudio} twoline graphic="medium" hasMeta data-uri="${audio.uri}">
-                            <span>${until(window.metadataCache.getAudioInfo(audio.uri).then(audio => audio.title), html`<loading-placeholder characters="15"></loading-placeholder>`)}</span>
-                            <span slot="secondary">${until(window.metadataCache.getAudioInfo(audio.uri).then(audio => audio.album), html`<loading-placeholder characters="10"></loading-placeholder>`)}</span>
-                            <img slot="graphic" src="${until(window.metadataCache.getAudioInfo(audio.uri).then(audio => audio.cover?.url ? audio.cover.url : defaultCoverObjectUrl), defaultCoverObjectUrl)}" />
+                            <span>${until(audio.title, html`<loading-placeholder characters="15"></loading-placeholder>`)}</span>
+                            <span slot="secondary">${until(audio.album, html`<loading-placeholder characters="10"></loading-placeholder>`)}</span>
+                            <img slot="graphic" src="${until(audio.cover.thumbnail.then(thumbnail => thumbnail.url ? thumbnail.url : defaultCoverObjectUrl), defaultCoverObjectUrl)}" />
                         </mwc-list-item>
                     `)}
                 </mwc-list>

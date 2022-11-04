@@ -180,7 +180,7 @@ export class AddAudioDialog extends ModalDialog {
                         <mwc-check-list-item ?selected=${this.autoSelectAllAudios} twoline graphic="medium">
                             <span>${audio.title}</span>
                             <span slot="secondary">${audio.album}</span>
-                            <img slot="graphic" src="${audio.cover?.url ? audio.cover.url : defaultCoverObjectUrl}" />
+                            <img slot="graphic" src="${audio.cover?.thumbnail?.url ? audio.cover.thumbnail.url : defaultCoverObjectUrl}" />
                         </mwc-check-list-item>
                     `)}
                 </mwc-list>
@@ -194,7 +194,7 @@ export class AddAudioDialog extends ModalDialog {
                         <mwc-list-item twoline graphic="medium" @click=${() => this.getPossibleAudiosFromPodcast(podcast.uri)}>
                             <span>${podcast.title}</span>
                             <span slot="secondary">${podcast.artist}</span>
-                            <img slot="graphic" src="${podcast.cover?.url ? podcast.cover.url : defaultCoverObjectUrl}" />
+                            <img slot="graphic" src="${podcast.cover?.thumbnail?.url ? podcast.cover.thumbnail.url : defaultCoverObjectUrl}" />
                         </mwc-list-item>
                     `)}
                 </mwc-list>

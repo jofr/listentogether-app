@@ -96,9 +96,9 @@ export class JoinListeningDialog extends ModalDialog {
             <mwc-list>
                 ${this.possibleSession.playlist.map(audio => html`
                     <mwc-list-item twoline graphic="medium">
-                        <span>${until(window.metadataCache.getAudioInfo(audio.uri).then(audio => audio.title), html`<loading-placeholder characters="15"></loading-placeholder>`)}</span>
-                        <span slot="secondary">${until(window.metadataCache.getAudioInfo(audio.uri).then(audio => audio.album), html`<loading-placeholder characters="10"></loading-placeholder>`)}</span>
-                        <img slot="graphic" src="${until(window.metadataCache.getAudioInfo(audio.uri).then(audio => audio.cover.url), defaultCoverObjectUrl)}" />
+                        <span>${until(audio.title, html`<loading-placeholder characters="15"></loading-placeholder>`)}</span>
+                        <span slot="secondary">${until(audio.album, html`<loading-placeholder characters="10"></loading-placeholder>`)}</span>
+                        <img slot="graphic" src="${until(audio.cover.thumbnail.then(thumbnail => thumbnail.url ? thumbnail.url : defaultCoverObjectUrl), defaultCoverObjectUrl)}" />
                     </mwc-list-item>
                 `)}
             </mwc-list>

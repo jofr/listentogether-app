@@ -42,10 +42,6 @@ export type PeerConnectionOptions = {
  export class PeerConnection extends Events {
     readonly localId: PeerId;
     readonly remoteId: PeerId;
-    protected turnHost: string;
-    protected turnPort: number;
-    protected stunHost: string;
-    protected stunPort: number;
     protected signalingConnection: SignalingConnection;
     private signalingMessageBuffer: SignalingMessage[] = [];
     protected connection: RTCPeerConnection | null = null;
@@ -79,6 +75,7 @@ export type PeerConnectionOptions = {
                     fetch(options.turnCredentialsRestApiUrl).then(response => response.json()).then((credentials) => {
                         options.turnUsername = credentials.username;
                         options.turnPassword = credentials.password;
+                        
                         this.connection.setConfiguration(this.getConfiguration(options));
                     });
                 }, (credentials.ttl - 120) * 1000);

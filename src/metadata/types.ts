@@ -15,7 +15,8 @@ export type AudioInfo = {
     duration: number,
     cover?: {
         original: CoverInfo,
-        thumbnail: CoverInfo
+        thumbnail: CoverInfo,
+        large: CoverInfo
     }
 }
 
@@ -27,6 +28,7 @@ export type PodcastInfo = {
     artist: string,
     cover?: {
         original: CoverInfo,
-        thumbnail: CoverInfo
+        thumbnail: CoverInfo,
+        large: CoverInfo
     }
 }

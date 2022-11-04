@@ -64,7 +64,7 @@ type Subscription = {
  * it check authorization. It just provides dumb functions for applying changes,
  * subscribing to parts of the state and emitting sync messages if something
  * gets changed locally. The actual message exchange has to be implemented in a
- * layer on top of that (and is done so in {@link ListeningPeer}). This layer
+ * layer on top of that (and is done so in {@link ListeningPeer}). That layer
  * has to know about other copies of the state (that want to be synced) and has
  * to make sure they get every sync message (in the right order) and could also
  * enforce authorization rules (e.g. denying the application of certain sync
