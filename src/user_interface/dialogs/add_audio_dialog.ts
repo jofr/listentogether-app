@@ -126,8 +126,8 @@ export class AddAudioDialog extends ModalDialog {
     }
 
     async loadMorePossibleAudiosFromPodcast() {
-        this.possibleAudios = await window.metadataCache.getPodcastEpisodes(this.podcastUrl, 0, this.numberOfAudios + 20);
-        if (this.possibleAudios.length == this.numberOfAudios + 20) {
+        this.possibleAudios = await window.metadataCache.getPodcastEpisodes(this.podcastUrl, 0, this.numberOfAudios + 10);
+        if (this.possibleAudios.length == this.numberOfAudios + 10) {
             this.moreAudiosPossible = true;
         } else {
             this.moreAudiosPossible = false;
