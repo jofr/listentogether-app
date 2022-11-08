@@ -1,9 +1,10 @@
 import { html, css, TemplateResult } from "lit";
 import { customElement } from "lit/decorators";
-import { until } from 'lit/directives/until.js';
+import { until } from 'lit/directives/until';
+import { keyed } from 'lit/directives/keyed';
 
 import { SessionController } from "../controllers/session";
-import { defaultCoverObjectUrl } from "../../util/util";
+import { defaultCoverObjectUrl, transparentDefaultCoverObjectUrl } from "../../util/util";
 import { AppPage } from "./page";
 
 declare global {
@@ -36,7 +37,22 @@ export class NowPlaying extends AppPage {
 
             #cover img {
                 width: 100%;
-                background-color: #b0e7ae;
+                animation: fading 1.5s infinite;
+                background-size: cover;
+            }
+
+            @keyframes fading {
+                0% {
+                    background-color: rgba(var(--on-surface-rgb), .1);
+                }
+                
+                50% {
+                    background-color: rgba(var(--on-surface-rgb), .2);
+                }
+                
+                100% {
+                    background-color: rgba(var(--on-surface-rgb), .1);
+                }
             }
 
             #cover .add-audio {
@@ -112,8 +128,22 @@ export class NowPlaying extends AppPage {
     coverTemplate(): TemplateResult {
         const session = this.sessionController.session;
 
+        // If e.g. skipping to the next song the cover image gets obviously
+        // changed. Normally this would reuse the img element. But if we are on
+        // a slow connection this results in the old cover image still being
+        // visible until the new cover image is loaded (because the img element
+        // is reused and just the src changed). Using keyed() makes sure that a
+        // new img element is created every time (which starts with a
+        // transparent image so that the loading animation is visible until the
+        // cover image is loaded)
         if (session?.playback.currentAudio) {
-            return html`<img id="cover" src="${until(window.metadataCache.getAudioInfo(session.playback.currentAudio).then(audio => audio.cover?.large?.url ? audio.cover.large.url : defaultCoverObjectUrl), defaultCoverObjectUrl)}" />`;
+            return html`
+                ${keyed(session.playback.currentAudio, 
+                        html`<img id="cover"
+                                  src="${until(window.metadataCache.getAudioInfo(session.playback.currentAudio).then(audio => audio.cover?.large?.url ? audio.cover.large.url : defaultCoverObjectUrl), "data:image/svg+xml;charset=utf8,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E")}"
+                                  style="background-image: url('${transparentDefaultCoverObjectUrl}');"
+                                  onerror="this.src='${defaultCoverObjectUrl}'"/>`)}
+            `;
         } else {
             return html`<div class="add-audio" @click=${() => window.app.showDialog("add-audio-dialog")}>playlist_add</div>`;
         }
