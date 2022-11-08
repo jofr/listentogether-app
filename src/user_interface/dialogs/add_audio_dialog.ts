@@ -6,7 +6,7 @@ import { ModalDialog } from "./modal_dialog";
 import { AudioInfo, PodcastInfo } from "../../metadata/types";
 import { extractUrls } from "../../util/util";
 import { SessionController } from "../controllers/session";
-import { defaultCoverObjectUrl } from "../../util/util";
+import { defaultCoverObjectUrl, transparentDefaultCoverObjectUrl } from "../../util/util";
 
 declare global {
     interface HTMLElementTagNameMap {
@@ -52,6 +52,25 @@ export class AddAudioDialog extends ModalDialog {
                 --mdc-theme-on-primary: var(--on-primary);
             }
 
+            img {
+                animation: fading 1.5s infinite;
+                background-size: cover;
+            }
+
+            @keyframes fading {
+                0% {
+                    background-color: rgba(var(--on-surface-rgb), .1);
+                }
+                
+                50% {
+                    background-color: rgba(var(--on-surface-rgb), .2);
+                }
+                
+                100% {
+                    background-color: rgba(var(--on-surface-rgb), .1);
+                }
+            }
+
             [hidden] {
                 display: none;
             }
@@ -60,6 +79,8 @@ export class AddAudioDialog extends ModalDialog {
 
     @state()
     private possiblePodcasts: PodcastInfo[] = [];
+
+    private allPossiblePodcasts: PodcastInfo[] = [];
 
     @state()
     private possibleAudios: AudioInfo[] = [];
@@ -90,16 +111,6 @@ export class AddAudioDialog extends ModalDialog {
         this.processing = false;
     }
 
-    async loadMorePossibleAudiosFromPodcast() {
-        this.possibleAudios = await window.metadataCache.getPodcastEpisodes(this.podcastUrl, 0, this.numberOfAudios + 20);
-        if (this.possibleAudios.length == this.numberOfAudios + 20) {
-            this.moreAudiosPossible = true;
-        } else {
-            this.moreAudiosPossible = false;
-        }
-        this.numberOfAudios = this.possibleAudios.length;
-    }
-
     async getPossibleAudiosFromPodcast(url: string) {
         window.backButton.push(() => { this.possibleAudios = [] });
 
@@ -112,6 +123,16 @@ export class AddAudioDialog extends ModalDialog {
 
 
         this.processing = false;
+    }
+
+    async loadMorePossibleAudiosFromPodcast() {
+        this.possibleAudios = await window.metadataCache.getPodcastEpisodes(this.podcastUrl, 0, this.numberOfAudios + 20);
+        if (this.possibleAudios.length == this.numberOfAudios + 20) {
+            this.moreAudiosPossible = true;
+        } else {
+            this.moreAudiosPossible = false;
+        }
+        this.numberOfAudios = this.possibleAudios.length;
     }
 
     @eventOptions({passive: true})
@@ -130,6 +151,27 @@ export class AddAudioDialog extends ModalDialog {
         }
     }
 
+    async getPossiblePodcastsFromSearchQuery(query: string) {
+        this.processing = true;
+
+        this.allPossiblePodcasts = await window.metadataCache.searchPodcasts(query);
+        this.possiblePodcasts = this.allPossiblePodcasts.slice(0, 10);
+
+        this.processing = false;
+    }
+
+    @eventOptions({passive: true})
+    async getMorePossiblePodcasts(event: Event) {
+        const element = event.target as HTMLElement;
+        if (element.scrollTop > (element.scrollHeight - element.clientHeight - 25)) {
+            this.loadingMore = true;
+
+            this.possiblePodcasts = this.allPossiblePodcasts.slice(0, this.possiblePodcasts.length + 10);
+
+            this.loadingMore = false;
+        }
+    }
+
     private onInput(event: Event) {
         const input = (event.target as HTMLInputElement).value;
         const urls = extractUrls(input);
@@ -141,8 +183,8 @@ export class AddAudioDialog extends ModalDialog {
                 clearTimeout(this.inputTimeout);
             }
             this.inputTimeout = window.setTimeout(async () => {
-                this.possiblePodcasts = await window.metadataCache.searchPodcasts(input);
-            }, 500);
+                this.getPossiblePodcastsFromSearchQuery(input);
+            }, 250);
         }
     }
 
@@ -162,6 +204,7 @@ export class AddAudioDialog extends ModalDialog {
     hide() {
         super.hide();
 
+        this.allPossiblePodcasts = [];
         this.possiblePodcasts = [];
         this.possibleAudios = [];
         this.numberOfAudios = 0;
@@ -169,18 +212,17 @@ export class AddAudioDialog extends ModalDialog {
     }
 
     renderContent() {
-        if (this.processing) {
-            return html`
-                <mwc-circular-progress-four-color indeterminate></mwc-circular-progress-four-color>
-            `
-        } else if (this.possibleAudios.length > 0) {
+        if (this.possibleAudios.length > 0) {
             return html`
                 <mwc-list multi @scroll=${this.getMorePossibleAudios}>
                     ${repeat(this.possibleAudios, audio => audio.uri, audio => html`
                         <mwc-check-list-item ?selected=${this.autoSelectAllAudios} twoline graphic="medium">
                             <span>${audio.title}</span>
                             <span slot="secondary">${audio.album}</span>
-                            <img slot="graphic" src="${audio.cover?.thumbnail?.url ? audio.cover.thumbnail.url : defaultCoverObjectUrl}" />
+                            <img slot="graphic"
+                                 src="${audio.cover?.thumbnail?.url ? audio.cover.thumbnail.url : defaultCoverObjectUrl}"
+                                 style="background-image: url('${transparentDefaultCoverObjectUrl}');"
+                                 onerror="this.src='${defaultCoverObjectUrl}'" />
                         </mwc-check-list-item>
                     `)}
                 </mwc-list>
@@ -189,12 +231,16 @@ export class AddAudioDialog extends ModalDialog {
         } else {
             return html`
                 <mwc-textfield outlined label="Search podcasts or paste audio URLs" @input=${this.onInput}></mwc-textfield>
-                <mwc-list ?hidden=${this.possiblePodcasts.length === 0}>
+                <mwc-circular-progress-four-color indeterminate ?hidden=${this.possiblePodcasts.length !== 0 || !this.processing}></mwc-circular-progress-four-color>
+                <mwc-list ?hidden=${this.possiblePodcasts.length === 0} @scroll=${this.getMorePossiblePodcasts}>
                     ${repeat(this.possiblePodcasts, podcast => podcast.uri, podcast => html`
                         <mwc-list-item twoline graphic="medium" @click=${() => this.getPossibleAudiosFromPodcast(podcast.uri)}>
                             <span>${podcast.title}</span>
                             <span slot="secondary">${podcast.artist}</span>
-                            <img slot="graphic" src="${podcast.cover?.thumbnail?.url ? podcast.cover.thumbnail.url : defaultCoverObjectUrl}" />
+                            <img slot="graphic"
+                                 src="${podcast.cover?.thumbnail?.url ? podcast.cover.thumbnail.url : defaultCoverObjectUrl}"
+                                 style="background-image: url('${transparentDefaultCoverObjectUrl}');"
+                                 onerror="this.src='${defaultCoverObjectUrl}'" />
                         </mwc-list-item>
                     `)}
                 </mwc-list>

@@ -4,6 +4,9 @@ import { PeerId } from "../webrtc/peer_connection";
 const defaultCoverData = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="100%" height="100%" fill="#b0e7ae" /><path d="m19.65 42q-3.15 0-5.325-2.175t-2.175-5.325 2.175-5.325 5.325-2.175q1.4 0 2.525 0.4t1.975 1.1v-22.5h11.7v6.75h-8.7v21.75q0 3.15-2.175 5.325t-5.325 2.175z" fill="#ffffff" /></svg>`;
 export const defaultCoverObjectUrl = URL.createObjectURL(new Blob([defaultCoverData], { type: "image/svg+xml" }));
 
+const transparentDefaultCoverData = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><path d="m19.65 42q-3.15 0-5.325-2.175t-2.175-5.325 2.175-5.325 5.325-2.175q1.4 0 2.525 0.4t1.975 1.1v-22.5h11.7v6.75h-8.7v21.75q0 3.15-2.175 5.325t-5.325 2.175z" fill="#ffffff" /></svg>`;
+export const transparentDefaultCoverObjectUrl = URL.createObjectURL(new Blob([transparentDefaultCoverData], { type: "image/svg+xml" }));
+
 export function extractUrls(input: string): string[] | null {
     return input.match(/\bhttps?:\/\/\S+/gi);
 }
