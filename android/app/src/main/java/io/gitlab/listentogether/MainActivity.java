@@ -15,9 +15,9 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
         registerPlugin(ShareTargetPlugin.class);
+        
+        super.onCreate(savedInstanceState);
 
         if(Build.VERSION.SDK_INT >= 24 ){
             ServiceWorkerController swController = ServiceWorkerController.getInstance();
