@@ -31,6 +31,7 @@ class MetadataCache {
                     uri: podcast.url,
                     title: podcast.title,
                     artist: podcast.author,
+                    description: podcast.description,
                     cover: {
                         original: { url: podcast.image.original },
                         thumbnail: { url: podcast.image.thumbnail },
@@ -125,6 +126,7 @@ class MetadataCache {
                         uri: podcast.url,
                         title: podcast.title,
                         artist: podcast.author,
+                        description: podcast.description,
                         cover: {
                             original: { url: podcast.image?.original },
                             thumbnail: { url: podcast.image?.thumbnail },

@@ -26,6 +26,7 @@ export type PodcastInfo = {
     uri: AudioUri,
     title: string,
     artist: string,
+    description: string,
     cover?: {
         original: CoverInfo,
         thumbnail: CoverInfo,

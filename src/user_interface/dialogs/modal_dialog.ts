@@ -73,6 +73,7 @@ export class ModalDialog extends LitElement {
             font-weight: 400;
             line-height: 1.25rem;
             color: var(--on-surface-variant);
+            hyphens: auto;
         }
 
         div.actions {

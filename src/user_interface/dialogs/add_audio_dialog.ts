@@ -2,7 +2,7 @@ import { html, css } from "lit";
 import { repeat } from "lit/directives/repeat";
 import { customElement, eventOptions, state } from "lit/decorators";
 
-import { ModalDialog } from "./modal_dialog";
+import { AddMediaDialog } from "./add_media_dialog";
 import { AudioInfo, PodcastInfo } from "../../metadata/types";
 import { extractUrls } from "../../util/util";
 import { SessionController } from "../controllers/session";
@@ -15,125 +15,10 @@ declare global {
 }
 
 @customElement("add-audio-dialog")
-export class AddAudioDialog extends ModalDialog {
-    static styles = [
-        ModalDialog.styles,
-        css`
-            mwc-list {
-                --mdc-theme-on-surface: var(--on-surface);
-                --mdc-theme-text-primary-on-background: var(--on-surface);
-                --mdc-theme-text-secondary-on-background: var(--on-surface-variant);
-                --mdc-theme-text-icon-on-background: var(--on-surface-variant);
-                --mdc-theme-text-hint-on-background: var(--on-surface-variant);
-                --mdc-checkbox-unchecked-color: var(--on-surface-variant);
-                --mdc-checkbox-checked-color: var(--secondary);
-                --mdc-checkbox-ink-color: var(--on-secondary);
-
-                overflow-y: scroll;
-                margin-left: -16px;
-                margin-right: -16px;
-            }
-
-            mwc-circular-progress-four-color {
-                margin: 0px auto;
-            }
-
-            mwc-textfield {
-                --mdc-text-field-label-ink-color: var(--on-surface-variant);
-                --mdc-text-field-ink-color: var(--on-surface);
-                --mdc-text-field-outlined-idle-border-color: var(--outline);
-                --mdc-text-field-outlined-hover-border-color: var(--on-surface);
-            }
-
-            mwc-button {
-                --mdc-button-disabled-fill-color: var(--on-surface-opacity-12);
-                --mdc-button-disabled-ink-color: var(--on-surface-opacity-38);
-                --mdc-theme-primary: var(--primary);
-                --mdc-theme-on-primary: var(--on-primary);
-            }
-
-            img {
-                animation: fading 1.5s infinite;
-                background-size: cover;
-            }
-
-            @keyframes fading {
-                0% {
-                    background-color: rgba(var(--on-surface-rgb), .1);
-                }
-                
-                50% {
-                    background-color: rgba(var(--on-surface-rgb), .2);
-                }
-                
-                100% {
-                    background-color: rgba(var(--on-surface-rgb), .1);
-                }
-            }
-
-            [hidden] {
-                display: none;
-            }
-        `
-    ];
-
-    @state()
-    private possiblePodcasts: PodcastInfo[] = [];
-
-    private allPossiblePodcasts: PodcastInfo[] = [];
-
-    @state()
-    private possibleAudios: AudioInfo[] = [];
-
-    private numberOfAudios: number = 0;
-    private moreAudiosPossible: boolean = false;
-    private podcastUrl: string;
-
-    @state()
-    private processing: boolean = false;
-
-    @state()
-    private loadingMore: boolean = false;
-
+export class AddAudioDialog extends AddMediaDialog {
     private autoSelectAllAudios: boolean = true;
-
     private inputTimeout: number | null = null;
-
     private sessionController = new SessionController(this);
-
-    async getPossibleAudiosFromUrls(urls: string[]) {
-        this.processing = true;
-
-        this.autoSelectAllAudios = true;
-        this.possibleAudios = await Promise.all(urls.map(url => window.metadataCache.getAudioInfo(url))) as AudioInfo[];
-        this.moreAudiosPossible = false;
-
-        this.processing = false;
-    }
-
-    async getPossibleAudiosFromPodcast(url: string) {
-        window.backButton.push(() => { this.possibleAudios = [] });
-
-        this.processing = true;
-
-        this.podcastUrl = url;
-        this.autoSelectAllAudios = false;
-        this.numberOfAudios = 0;
-        await this.loadMorePossibleAudiosFromPodcast();
-
-
-        this.processing = false;
-    }
-
-    async loadMorePossibleAudiosFromPodcast() {
-        this.possibleAudios = await window.metadataCache.getPodcastEpisodes(this.podcastUrl, 0, this.numberOfAudios + 10);
-        if (this.possibleAudios.length == this.numberOfAudios + 10) {
-            this.moreAudiosPossible = true;
-        } else {
-            this.moreAudiosPossible = false;
-        }
-        this.numberOfAudios = this.possibleAudios.length;
-    }
 
     @eventOptions({passive: true})
     async getMorePossibleAudios(event: Event) {
@@ -149,15 +34,6 @@ export class AddAudioDialog extends ModalDialog {
 
             this.loadingMore = false;
         }
-    }
-
-    async getPossiblePodcastsFromSearchQuery(query: string) {
-        this.processing = true;
-
-        this.allPossiblePodcasts = await window.metadataCache.searchPodcasts(query);
-        this.possiblePodcasts = this.allPossiblePodcasts.slice(0, 10);
-
-        this.processing = false;
     }
 
     @eventOptions({passive: true})
@@ -177,6 +53,7 @@ export class AddAudioDialog extends ModalDialog {
         const urls = extractUrls(input);
 
         if (urls !== null) {
+            this.autoSelectAllAudios = true;
             this.getPossibleAudiosFromUrls(urls);
         } else {
             if (this.inputTimeout !== null) {
@@ -199,16 +76,6 @@ export class AddAudioDialog extends ModalDialog {
         }
 
         this.hide();
-    }
-
-    hide() {
-        super.hide();
-
-        this.allPossiblePodcasts = [];
-        this.possiblePodcasts = [];
-        this.possibleAudios = [];
-        this.numberOfAudios = 0;
-        this.moreAudiosPossible = false;
     }
 
     renderContent() {
@@ -234,7 +101,7 @@ export class AddAudioDialog extends ModalDialog {
                 <mwc-circular-progress-four-color indeterminate ?hidden=${this.possiblePodcasts.length !== 0 || !this.processing}></mwc-circular-progress-four-color>
                 <mwc-list ?hidden=${this.possiblePodcasts.length === 0} @scroll=${this.getMorePossiblePodcasts}>
                     ${repeat(this.possiblePodcasts, podcast => podcast.uri, podcast => html`
-                        <mwc-list-item twoline graphic="medium" @click=${() => this.getPossibleAudiosFromPodcast(podcast.uri)}>
+                        <mwc-list-item twoline graphic="medium" @click=${() => { this.autoSelectAllAudios = false; this.getPossibleAudiosFromPodcast(podcast.uri); window.backButton.push(() => { this.possibleAudios = [] }); }}>
                             <span>${podcast.title}</span>
                             <span slot="secondary">${podcast.artist}</span>
                             <img slot="graphic"
