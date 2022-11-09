@@ -41,14 +41,14 @@ export class ListenerAvatar extends LitElement {
 
     private generateGradient() {
         // Alphabet of characters used for random IDs is in ASCII range
-        // [48..122] (letters, numbers, some symbols) and we need a random color
+        // [45..122] (letters, numbers, some symbols) and we need a random color
         // in hex notation. So just map the first three ID characters (one each
-        // for r, g and b) from the used range [48..122] to the needed range
+        // for r, g and b) from the used range [45..122] to the needed range
         // [0..255] and convert this to its hexadecimal string representation
         // (this of course looses resolution and not all values are possible
         // because some symbols in that ASCII range are never used for the ID
         // but should be good enough for this purpose)
-        const hex = Array.from(this.id.substring(0, 3)).map(x => Math.floor((x.charCodeAt(0) - 48) * 3.45).toString(16).padStart(2, "0")).join("");
+        const hex = Array.from(this.id.substring(0, 3)).map(x => Math.floor((x.charCodeAt(0) - 45) * 3.32).toString(16).padStart(2, "0")).join("");
 
         // This part (generating two matching colors for gradient) is taken from
         // https://github.com/tobiaslins/avatar/tree/master/src */
