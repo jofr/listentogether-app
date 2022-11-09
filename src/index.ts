@@ -6,6 +6,7 @@ import { AudioElementPlayer } from "./player/audio_element_player";
 import { ListeningSession } from "./listening/session";
 import { AudioPlayer } from "./player/audio_player";
 import "./metadata/cache";
+import { extractUrls } from "./util/util";
  
 declare global { 
     interface Window {
@@ -46,8 +47,11 @@ interface ShareTargetPlugin {
 const shareTarget = registerPlugin<ShareTargetPlugin>('ShareTarget');
 shareTarget.addListener("receiveshare", (share: any) => {
     if (share.text) {
-        //document.querySelector("add-audio-dialog").setInput(share.text);
-        window.app.showDialog("add-audio-dialog");
+        const urls = extractUrls(share.text);
+        if (urls !== null) {
+            window.app.showDialog("add-audio-dialog");
+            document.querySelector("add-audio-dialog").getPossibleAudiosFromUrls(urls);
+        }
     }
 });
 
