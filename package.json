@@ -6,9 +6,9 @@
     "postbuild": "cap sync"
   },
   "devDependencies": {
-    "@capacitor/app": "^1.1.1",
-    "@capacitor/cli": "^3.6.0",
-    "@jofr/capacitor-media-session": "^1.0.3",
+    "@capacitor/app": "^4.0.0",
+    "@capacitor/cli": "^4.0.0",
+    "@jofr/capacitor-media-session": "^2.0.0",
     "@material/mwc-button": "^0.26.1",
     "@material/mwc-circular-progress-four-color": "^0.26.1",
     "@material/mwc-fab": "^0.26.1",
@@ -49,9 +49,9 @@
     "workbox-window": "^6.5.3"
   },
   "dependencies": {
-    "@capacitor/android": "^3.6.0",
-    "@capacitor/core": "^3.6.0",
-    "@capacitor/share": "^1.1.2",
+    "@capacitor/android": "^4.0.0",
+    "@capacitor/core": "^4.0.0",
+    "@capacitor/share": "^4.0.0",
     "@material/mwc-linear-progress": "^0.27.0",
     "parcel-config-precache-manifest": "^0.0.4",
     "workbox-build": "^6.5.4"
