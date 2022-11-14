@@ -103,6 +103,7 @@ export class ListeningSession extends Events implements StateSubscribable {
         // Signaling connection might still be open so close it cleanly
         this.peer.closeConnections();
         this.peer = new ListeningHost(this.state);
+        this.mediaSessionActionsSetup();
         window.dispatchEvent(new CustomEvent("sessionchange")); /* TODO: triggers updates, solve this in a better way */
         this.emit("listenertohost");
     }
@@ -131,17 +132,49 @@ export class ListeningSession extends Events implements StateSubscribable {
         this.state.subscribe(paths, callback);
     }
 
+    private noAction = () => {
+        this.updateMediaSessionPlaybackState();
+    }
+
+    private mediaSessionActionsSetup() {
+        if (this.peer instanceof ListeningHost) {
+            // Set up possible system media keys to initiate the desired action (for
+            // the actions that are always possible and do not depend on some other
+            // part of the state, e.g. skip next is only possible if there is a next
+            // audio in the playlist, see updateMediaSessionActions below)
+            MediaSession.setActionHandler({ action: "play" }, () => this.togglePlay("play"));
+            MediaSession.setActionHandler({ action: "pause" }, () => this.togglePlay("pause"));
+            MediaSession.setActionHandler({ action: "seekto" }, (details: MediaSessionActionDetails) => this.seek(details.seekTime));
+            MediaSession.setActionHandler({ action: "seekbackward" }, () => this.replay());
+            MediaSession.setActionHandler({ action: "seekforward" }, () => this.forward());
+            MediaSession.setActionHandler({ action: "stop" }, () => this.stop());
+        } else {
+            // If this peer is a listener (and not a host) none of the actions
+            // are allowed (because the host controls playback). Disabling those
+            // actions by setting the handler to null should work according to
+            // the Media Session Standard draft but at least in Chrome it does
+            // not. Chrome instead just performs those actions on the audio
+            // element anyways even if the handler is set to null. Setting the
+            // handler to a function that does nothing seems to work. Because
+            // Chrome still updates the media notification as if the expected
+            // action would have happened this function then has to immediately
+            // update the media session playback state to revert this again.
+            // TODO: This is not a good solution. Investigate if I don't
+            // understand the standard draft or Chrome just implements it wrong
+            // and this is a bug in Chrome?
+            MediaSession.setActionHandler({ action: "play" }, this.noAction);
+            MediaSession.setActionHandler({ action: "pause" }, this.noAction);
+            MediaSession.setActionHandler({ action: "seekto" }, this.noAction);
+            MediaSession.setActionHandler({ action: "seekbackward" }, this.noAction);
+            MediaSession.setActionHandler({ action: "seekforward" }, this.noAction);
+            MediaSession.setActionHandler({ action: "previoustrack" }, null);
+            MediaSession.setActionHandler({ action: "nexttrack" }, null);
+            MediaSession.setActionHandler({ action: "stop" }, this.noAction);
+        }
+    }
+
     private mediaSessionAPISetup() {
-        // Set up possible system media keys to initiate the desired action (for
-        // the actions that are always possible and do not depend on some other
-        // part of the state, e.g. skip next is only possible if there is a next
-        // audio in the playlist, see updateMediaSessionActions below)
-        MediaSession.setActionHandler({ action: "play" }, () => this.togglePlay("play"));
-        MediaSession.setActionHandler({ action: "pause" }, () => this.togglePlay("pause"));
-        MediaSession.setActionHandler({ action: "seekto" }, (details: MediaSessionActionDetails) => this.seek(details.seekTime));
-        MediaSession.setActionHandler({ action: "seekbackward" }, () => this.replay());
-        MediaSession.setActionHandler({ action: "seekforward" }, () => this.forward());
-        MediaSession.setActionHandler({ action: "stop" }, () => this.stop());
+        this.mediaSessionActionsSetup();
 
         // Change media playback metadata through the Media Session API when
         // actual playback changes (not when the state itself changes because
@@ -171,6 +204,10 @@ export class ListeningSession extends Events implements StateSubscribable {
     }
 
     private updateMediaSessionActions = () => {
+        if (this.peer instanceof ListeningListener) {
+            return;
+        }
+
         const currentAudioUri = this.state.playback.currentAudio;
         const playlistIndex = this.state.playlist.findIndex((uri: AudioUri) => uri === currentAudioUri);
         const playlistLength = this.state.playlist.length;
