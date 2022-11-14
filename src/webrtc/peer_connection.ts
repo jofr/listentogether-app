@@ -168,10 +168,9 @@ export type PeerConnectionOptions = {
                 this.emit("reconnected");
             }
         } else if (this.connection.connectionState === "disconnected") {
-            // TODO: This is either a temporary connection problem (that solves
-            // itself) or the state will eventually transition to "failed". But
-            // it might be useful to make this state available anyways (e.g. for
-            // user interface indications of potential connectivity problems)?
+            // This is either a temporary connection problem (that solves
+            // itself) or the state will eventually transition to "failed".
+            this.emit("disconnected");
         } else if (this.connection.connectionState === "failed") {
             // TODO: Most of the time this will be caused by network changes
             // (temporarily no connection on mobile, switch from wifi to mobile,
@@ -184,8 +183,8 @@ export type PeerConnectionOptions = {
             // again?
             logger.debug(`Peer connection (${this.localId}<->${this.remoteId}) failed, restarting ICE`);
             this.connection.restartIce();
-            // TODO: If restarting ICE is not successful after some time the
-            // peer connection should be closed
+            // TODO: Should the conection be closed after some time if this is
+            // not successful?
         } else if (this.connection.connectionState === "closed") {
             logger.debug(`Peer connection (${this.localId}<->${this.remoteId}) closed`);
             this.emit("closed");
@@ -253,7 +252,12 @@ export type PeerConnectionOptions = {
         try {
             const message = JSON.parse(event.data);
             logger.debug(`Received messag on data channel (${this.localId}<->${this.remoteId}): `, message);
-            this.emit("message", message);
+            if (message.type === "closing") {
+                this.connection.close();
+                logger.debug(`Peer closed connection (${this.localId}<->${this.remoteId})`);
+            } else {
+                this.emit("message", message);
+            }
         } catch (error) {
             logger.warn(`Received malformed message on data channel (${this.localId}<->${this.remoteId}): `, event.data);
         }
@@ -270,7 +274,14 @@ export type PeerConnectionOptions = {
     }
 
     close() {
-        this.connection?.close();
+        if (this.connection) {
+            this.sendMessage({ type: "closing" });
+            this.connection.close();
+        }
+    }
+
+    get connectionState(): string {
+        return this.connection ? this.connection.connectionState : "closed";
     }
 }
 
