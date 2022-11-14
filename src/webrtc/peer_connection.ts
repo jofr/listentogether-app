@@ -158,6 +158,7 @@ export type PeerConnectionOptions = {
     }
 
     private connectionStateChange = async () => {
+        console.log("STATE CHANGE", this.connection.connectionState)
         if (this.connection.connectionState === "connected") {
             if (!this.hasBeenConnected) {
                 this.hasBeenConnected = true;
@@ -253,8 +254,11 @@ export type PeerConnectionOptions = {
             const message = JSON.parse(event.data);
             logger.debug(`Received messag on data channel (${this.localId}<->${this.remoteId}): `, message);
             if (message.type === "closing") {
+                logger.debug(`Remote peer closing connection (${this.localId}<->${this.remoteId})`);
+                // Closing the connection this way "does not fire any event"
+                // (compare WebRTC spec) so has to be done here explicitly
                 this.connection.close();
-                logger.debug(`Peer closed connection (${this.localId}<->${this.remoteId})`);
+                this.emit("closed");
             } else {
                 this.emit("message", message);
             }
