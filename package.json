@@ -1,4 +1,5 @@
 {
+  "version": "1.0.0-alpha01",
   "scripts": {
     "dev": "parcel serve src/index.html --no-hmr",
     "prebuild": "mkdir -p dist && rm -rf dist/* && cp res/silence.mp3 dist/",
