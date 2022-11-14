@@ -5,7 +5,7 @@ import { logger } from "../util/logger";
 import { createInvitationUrl } from "../util/util";
 import { SignalingConnection, SignalingMessage } from "../webrtc/signaling_connection";
 import { PeerId, PeerConnection, CallerPeerConnection, CalleePeerConnection, PeerConnectionOptions } from "../webrtc/peer_connection";
-import { ListeningState } from "./state";
+import { ListenerState, ListeningState } from "./state";
 import { SyncableListeningState, StateSyncMessage } from "./state";
 import { AudioInfo, AudioUri } from "../metadata/types";
 
@@ -152,7 +152,10 @@ export class ListeningHost extends ListeningPeer {
         // property of the host is correctly initialized here.
         this.state.applyLocalChange((state: ListeningState) => {
             state.listeners = [];
-            state.listeners.push(this.id);
+            state.listeners.push({
+                id: this.id,
+                connectionState: "stable"
+            });
         });
 
         this.on("connection", this.listenerConnected);
@@ -167,7 +170,10 @@ export class ListeningHost extends ListeningPeer {
         // if the connection to the peer is established and already change state
         // accordingly (this automatically triggers a listeners sync message) ...
         this.state.applyLocalChange((state: ListeningState) => {
-            state.listeners.push(peerConnection.remoteId);
+            state.listeners.push({
+                id: peerConnection.remoteId,
+                connectionState: "stable"
+            });
         });
 
         // ...and prepare playlist and playback sync messages to the new peer
@@ -182,13 +188,31 @@ export class ListeningHost extends ListeningPeer {
             data: this.state.playlist
         }, [peerConnection.remoteId]);
 
+        peerConnection.on("temporarilydisconnected", () => {
+            this.state.applyLocalChange((state: ListeningState) => {
+                const index = state.listeners.findIndex((listener: ListenerState) => listener.id === peerConnection.remoteId);
+                state.listeners[index].connectionState = "unstable";
+            });
+        });
+        peerConnection.on("disconnected", () => {
+            this.state.applyLocalChange((state: ListeningState) => {
+                const index = state.listeners.findIndex((listener: ListenerState) => listener.id === peerConnection.remoteId);
+                state.listeners[index].connectionState = "disconnected";
+            });
+        });
+        peerConnection.on("reconnected", () => {
+            this.state.applyLocalChange((state: ListeningState) => {
+                const index = state.listeners.findIndex((listener: ListenerState) => listener.id === peerConnection.remoteId);
+                state.listeners[index].connectionState = "stable";
+            });
+        });
         peerConnection.on("closed", () => this.listenerConnectionClosed(peerConnection.remoteId));
         peerConnection.on("message", (message: SyncMessage) => this.syncMessage(peerConnection, message));
     }
 
     private listenerConnectionClosed(peerId: PeerId) {
         this.state.applyLocalChange((state: ListeningState) => {
-            const index = state.listeners.indexOf(peerId);
+            const index = state.listeners.findIndex((listener: ListenerState) => listener.id === peerId);
             state.listeners.splice(index, 1);
         });
     }

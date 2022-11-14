@@ -2,7 +2,7 @@ import { MediaSession } from "@jofr/capacitor-media-session";
 
 import { Events } from "../util/events";
 import { ConnectionState, ListeningHost, ListeningListener, ListeningPeer } from "./peer";
-import { SyncableListeningState, ListeningState, StateSubscribable, StateSubscriptionFunction } from "./state";
+import { SyncableListeningState, ListeningState, ListenerState, StateSubscribable, StateSubscriptionFunction } from "./state";
 import { AudioUri, CoverInfo } from "../metadata/types";
 import { AudioPlayer } from "../player/audio_player";
 import { logger } from "../util/logger";
@@ -31,7 +31,8 @@ export type SessionPlaylist = PromisedAudioInfo[];
 
 export type ListenerInfo = {
     id: string,
-    name: string
+    name: string,
+    connectionState: "stable" | "unstable" | "disconnected"
 }
 
 /**
@@ -336,24 +337,27 @@ export class ListeningSession extends Events implements StateSubscribable {
         if (this.peer instanceof ListeningListener) {
             listeners.push({
                 id: this.peer.hostId,
-                name: "Host"
+                name: "Host",
+                connectionState: "stable"
             });
             listeners.push({
                 id: this.peer.id,
-                name: "+You"
+                name: "+You",
+                connectionState: "stable"
             })
         } else {
             listeners.push({
                 id: this.peer.id,
-                name: "You"
+                name: "You",
+                connectionState: "stable"
             });
         }
 
         const exclude = this.peer instanceof ListeningListener ? [this.peer.id, this.peer.hostId] : [this.peer.id];
-        for (const listenerId of this.state.listeners.filter((id: string) => !exclude.includes(id))) {
+        for (const listener of this.state.listeners.filter((listener: ListenerState) => !exclude.includes(listener.id))) {
             listeners.push({
-                id: listenerId,
-                name: "+1"
+                ...listener,
+                name: "+1",
             });
         }
         

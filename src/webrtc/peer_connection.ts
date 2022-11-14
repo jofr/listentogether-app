@@ -46,6 +46,7 @@ export type PeerConnectionOptions = {
     private signalingMessageBuffer: SignalingMessage[] = [];
     protected connection: RTCPeerConnection | null = null;
     private hasBeenConnected: boolean = false;
+    private reconnectionTimeout: number | null = null;
     protected dataChannel: RTCDataChannel | null;
     private messageQueue: string[] = [];
     protected polite: boolean;
@@ -158,7 +159,6 @@ export type PeerConnectionOptions = {
     }
 
     private connectionStateChange = async () => {
-        console.log("STATE CHANGE", this.connection.connectionState)
         if (this.connection.connectionState === "connected") {
             if (!this.hasBeenConnected) {
                 this.hasBeenConnected = true;
@@ -166,12 +166,16 @@ export type PeerConnectionOptions = {
                 this.emit("connected");
             } else {
                 logger.debug(`Peer connection (${this.localId}<->${this.remoteId}) reconnected`);
+                if (this.reconnectionTimeout !== null) {
+                    window.clearTimeout(this.reconnectionTimeout);
+                    this.reconnectionTimeout = null;
+                }
                 this.emit("reconnected");
             }
         } else if (this.connection.connectionState === "disconnected") {
             // This is either a temporary connection problem (that solves
             // itself) or the state will eventually transition to "failed".
-            this.emit("disconnected");
+            this.emit("temporarilydisconnected");
         } else if (this.connection.connectionState === "failed") {
             // TODO: Most of the time this will be caused by network changes
             // (temporarily no connection on mobile, switch from wifi to mobile,
@@ -183,9 +187,15 @@ export type PeerConnectionOptions = {
             // postpone the ICE restart until the signaling connection is back
             // again?
             logger.debug(`Peer connection (${this.localId}<->${this.remoteId}) failed, restarting ICE`);
+            this.emit("temporarilydisconnected");
             this.connection.restartIce();
-            // TODO: Should the conection be closed after some time if this is
-            // not successful?
+            if (this.reconnectionTimeout !== null) {
+                window.clearTimeout(this.reconnectionTimeout);
+            }
+            this.reconnectionTimeout = window.setTimeout(() => {
+                this.emit("disconnected");
+                this.reconnectionTimeout = null;
+            }, 60000);
         } else if (this.connection.connectionState === "closed") {
             logger.debug(`Peer connection (${this.localId}<->${this.remoteId}) closed`);
             this.emit("closed");
@@ -282,10 +292,6 @@ export type PeerConnectionOptions = {
             this.sendMessage({ type: "closing" });
             this.connection.close();
         }
-    }
-
-    get connectionState(): string {
-        return this.connection ? this.connection.connectionState : "closed";
     }
 }
 

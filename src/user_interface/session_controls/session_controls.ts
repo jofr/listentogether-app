@@ -161,6 +161,10 @@ export class PeerControls extends LitElement {
             margin-left: -0.75rem;
         }
 
+        #listeners .unstable {
+            opacity: 0.5;
+        }
+
         #invite-border {
             position: relative;
             height: 2.5rem;
@@ -235,8 +239,8 @@ export class PeerControls extends LitElement {
 
         return html`
             <div id="listeners">
-                ${listeners.map(listener => html`
-                    <listener-avatar id="${listener.id}" name="${listener.name}"></listener-avatar>
+                ${listeners.map(listener => listener.connectionState === "disconnected" ? nothing : html`
+                    <listener-avatar id="${listener.id}" name="${listener.name}" class="${listener.connectionState}"></listener-avatar>
                 `)}
                 <div id="invite-border">
                     <div id="invite" @click=${this.inviteListener}>

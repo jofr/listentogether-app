@@ -13,10 +13,15 @@ export type PlaybackState = {
     paused: boolean
 }
 
+export type ListenerState = {
+    id: PeerId,
+    connectionState: "stable" | "unstable" | "disconnected"
+}
+
 export type ListeningState = {
     playback: PlaybackState,
     playlist: AudioUri[],
-    listeners: PeerId[]
+    listeners: ListenerState[]
 }
 
 export type PlaybackStateSyncMessage = {
@@ -31,7 +36,7 @@ export type PlaylistStateSyncMessage = {
 
 export type ListenersStateSyncMessage = {
     type: "listeners",
-    data: PeerId[]
+    data: ListenerState[]
 }
 
 export type StateSyncMessage =
@@ -149,7 +154,7 @@ export class SyncableListeningState extends Events implements ListeningState, St
 
     applySyncMessage(message: StateSyncMessage): void {
         this.mutateState((state: ListeningState) => {
-            (state[message.type] as PlaybackState | AudioUri[] | PeerId[]) = message.data;
+            (state[message.type] as PlaybackState | AudioUri[] | ListenerState[]) = message.data;
         });
         this.emit("synced");
     }
@@ -184,7 +189,7 @@ export class SyncableListeningState extends Events implements ListeningState, St
         return this.state.playlist;
     }
 
-    get listeners(): PeerId[] {
+    get listeners(): ListenerState[] {
         return this.state.listeners;
     }
 }
