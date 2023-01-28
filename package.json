@@ -1,10 +1,10 @@
 {
   "version": "1.0.0-alpha02",
   "scripts": {
-    "dev": "parcel serve src/index.html --no-hmr",
+    "dev": "node dev.mjs",
     "prebuild": "mkdir -p dist && rm -rf dist/* && cp res/silence.mp3 dist/",
     "build": "parcel build src/index.html",
-    "postbuild": "cap sync"
+    "postbuild": "workbox injectManifest && cap sync"
   },
   "devDependencies": {
     "@capacitor/app": "^4.0.0",

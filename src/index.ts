@@ -115,7 +115,9 @@ document.addEventListener("DOMContentLoaded", () => {
         document.querySelector("join-listening-dialog").session = potentialSession;
         window.app.showDialog("join-listening-dialog");
     }
+});
 
+window.addEventListener("load", () => {
     if ("serviceWorker" in navigator) {
         initializeServiceWorker();
     }
