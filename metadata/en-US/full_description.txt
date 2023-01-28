@@ -1,0 +1,3 @@
+Just invite your friends to your listening session and playback will be synchronized – whether you are miles apart or sitting next to each other. And the best part: your friends don't need to have the app installed themselves because ListenTogether is also available as a Progressive Web App (PWA) and will just be opened in their browser if the app is not available.
+
+ListenTogether can play almost any audio file publicly accessible via HTTP or HTTPS by just pasting the URL when adding new audio to the playlist. It has excellent support for podcasts: you don't need the URL of an audio file for a podcast episode because you can search for them inside the app and add episodes directly.

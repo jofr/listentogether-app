@@ -1,0 +1,3 @@
+Lade Freunde zu deiner Listening-Session ein um gemeinsam eine Playlist anzuhören – egal ob ihr direkt nebeneinader sitzt oder hunderte Kilometer voneinander entfernt seid. Das beste daran: Deine Freunde müssen die App noch nicht einmal selber installiert haben, da es ListenTogether auch als Progressive Web App (PWA) gibt und daher einfach direkt in ihrem Browser geöffnet wird, wenn die App nicht verfügbar ist.
+
+ListenTogether kann dabei fast alle Audiodateien abspielen die öffentlich per HTTP oder HTTPS erreichbar sind. Wenn du ein Audio zur Playlist hinzufügst füge einfach die entsprechende URL ein. Bei Podcasts ist es sogar noch einfacher: Diese können direkt in der App gesucht und einzelne Episoden zur Playlist hinzugefügt werden.
