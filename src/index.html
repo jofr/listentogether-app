@@ -105,12 +105,17 @@
         --on-surface-variant: #c4cabe;
         --outline: #8e9489;
       }
+
+      [hidden] {
+        display: none;
+      }
     </style>
   </head>
   <body>
     <listen-together-app>
-      <now-playing slot="page"></now-playing>
-      <editable-playlist slot="page"></editable-playlist>
+      <now-playing slot="scrollable-page"></now-playing>
+      <editable-playlist slot="scrollable-page"></editable-playlist>
+      <app-settings slot="page"></app-settings>
       <add-audio-dialog slot="dialog"></add-audio-dialog>
       <invite-listener-dialog slot="dialog"></invite-listener-dialog>
       <join-listening-dialog slot="dialog"></join-listening-dialog>

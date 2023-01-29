@@ -1,6 +1,7 @@
 import { App } from "@capacitor/app";
 import { registerPlugin } from "@capacitor/core";
 
+import { Settings } from "./settings";
 import { ListenTogetherApp } from "./user_interface/app";
 import { AudioElementPlayer } from "./player/audio_element_player";
 import { ListeningSession } from "./listening/session";
@@ -10,12 +11,15 @@ import { extractUrls } from "./util/util";
  
 declare global { 
     interface Window {
+        settings: Settings;
         app: ListenTogetherApp;
         player: AudioPlayer;
         session: ListeningSession;
         backButton: BackButtonStack;
     }
 }
+
+window.settings = new Settings();
 
 class BackButtonStack {
     private callbackStack = [];
@@ -39,7 +43,8 @@ class BackButtonStack {
 
 window.backButton = new BackButtonStack();
 
-/* Plugin makes it possible to get URLs shared from androids native share to functionality */
+// Plugin makes it possible to get audio URLs from Androids native "Share
+// to"-functionality
 interface ShareTargetPlugin {
     addListener(event: string, callback: (...args: any[]) => void): void;
 }
@@ -55,7 +60,7 @@ shareTarget.addListener("receiveshare", (share: any) => {
     }
 });
 
-/* Reload on hash change or if android app opened with specific URL for hash */
+// Reload on hash change or if Android app opened with specific URL for hash
 window.addEventListener("hashchange", () => window.location.reload());
 
 App.addListener('appUrlOpen', data => {
@@ -65,7 +70,8 @@ App.addListener('appUrlOpen', data => {
     }
 });
 
-/* Set up global peer as window property to dispatch event on change (relevant for user interface elements) */
+// Set up global session as window property to dispatch event on change
+// (relevant for user interface elements)
 let listeningSession: ListeningSession | null = null;
 
 Object.defineProperty(window, "session", {
@@ -86,12 +92,13 @@ Object.defineProperty(window, "session", {
     }
 });
 
-/* Set up initial host peer */
+// Set up app, audio player and initial host listening session
 window.app = document.querySelector("listen-together-app");
 window.player = new AudioElementPlayer();
 window.session = ListeningSession.CreateHost();
 
-/* Get viewport size without browser chrome for correct initial sizing (TODO: change as soon as svh unit is widely supported) */
+// Get viewport size without browser chrome for correct initial sizing
+// TODO: Change this as soon as svh unit is supported widely enough
 const calculateSvh = () => {
     let svh = window.innerHeight * 0.01;
     document.documentElement.style.setProperty('--svh', `${svh}px`);
@@ -99,23 +106,26 @@ const calculateSvh = () => {
 window.addEventListener("resize", calculateSvh);
 calculateSvh();
 
-async function initializeServiceWorker() {
-    await navigator.serviceWorker.register(new URL("service-worker.ts", import.meta.url), { type: "module" });
-}
-
 document.addEventListener("DOMContentLoaded", () => {
-    /* Get preferred color scheme and switch to dark mode if preferred */
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.body.classList.add("dark-mode"); /* TODO: needs some fixes for material web components */
+    // On first use get the preferred color scheme and save it as a setting.
+    // Setting this again on subsequent starts ensures that the appropriate
+    // "dark-mode" class is added to the body element.
+    if ((window.matchMedia('(prefers-color-scheme: dark)').matches && window.settings.firstUse) || window.settings.darkMode) {
+        window.settings.darkMode = true;
     }
 
-    /* If hash in URL set up potential listener and show join listening dialog */
+    // If there is a hash in the URL set up a potential listener and show the
+    // dialog to join the listening
     if (window.location.hash.length > 0) {
         const potentialSession = ListeningSession.CreateListener(window.location.hash.substring(1));
         document.querySelector("join-listening-dialog").session = potentialSession;
         window.app.showDialog("join-listening-dialog");
     }
 });
+
+async function initializeServiceWorker() {
+    await navigator.serviceWorker.register(new URL("service-worker.ts", import.meta.url), { type: "module" });
+}
 
 window.addEventListener("load", () => {
     if ("serviceWorker" in navigator) {

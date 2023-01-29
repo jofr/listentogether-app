@@ -20,4 +20,5 @@ import "./elements/listener_avatar";
 import "./elements/loading_placeholder";
 import "./pages/now_playing";
 import "./pages/playlist";
+import "./pages/settings";
 import "./session_controls/session_controls";

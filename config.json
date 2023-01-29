@@ -1,10 +1,7 @@
 {
-    "podcastServiceUrl": "https://listentogether.nsupdate.info",
-    "stunHost": "listentogether.nsupdate.info",
+    "backendHost": "listentogether.nsupdate.info",
+    "turnCredentialsRestApiPath": "/turn/credentials",
     "stunPort": 3478,
-    "turnHost": "listentogether.nsupdate.info",
     "turnPort": 3478,
-    "turnCredentialsRestApiUrl": "https://listentogether.nsupdate.info/turn/credentials",
-    "signalingHost": "listentogether.nsupdate.info",
     "signalingPort": 443
 }

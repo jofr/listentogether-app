@@ -1,8 +1,6 @@
 import { AudioInfo, PodcastEpisodes, PodcastInfo } from "./types";
 import { extractAudioInfoFromUrl } from "./extract";
 import { catchError } from "../util/util";
-
-import config from "../../config.json";
 import { ListeningListener } from "../listening/peer";
 
 declare global {
@@ -23,7 +21,7 @@ class MetadataCache {
     private podcastInfoCache: Map<string, Promise<PodcastInfo | null>> = new Map<string, Promise<PodcastInfo | null>>();
 
     private async downloadPodcastInfo(uri: string): Promise<PodcastInfo | null> {
-        const [error, response] = await catchError(fetch(`${config.podcastServiceUrl}/podcasts/${encodeURIComponent(uri)}`));
+        const [error, response] = await catchError(fetch(`https://${window.settings.backendHost}/podcasts/${encodeURIComponent(uri)}`));
         if (!error && (response as Response).ok) {
             const podcast = await (response as Response).json();
             if (podcast) {
@@ -47,7 +45,7 @@ class MetadataCache {
         
         const podcastTitle = await this.getPodcastInfo(uri).then(info => info?.title ? info.title : "");
         const podcastArtist = await this.getPodcastInfo(uri).then(info => info?.title ? info.title : "");
-        const [error, response] = await catchError(fetch(`${config.podcastServiceUrl}/podcasts/${encodeURIComponent(uri)}/episodes?max=${max}`));
+        const [error, response] = await catchError(fetch(`https://${window.settings.backendHost}/podcasts/${encodeURIComponent(uri)}/episodes?max=${max}`));
         if (!error && (response as Response).ok) {
             const episodes = await (response as Response).json();
             if (Array.isArray(episodes) && episodes.length > 0) {
@@ -116,7 +114,7 @@ class MetadataCache {
     async searchPodcasts(query: string): Promise<PodcastInfo[]> {
         let results = [];
 
-        const [error, response] = await catchError(fetch(`${config.podcastServiceUrl}/podcasts?search=${query}`));
+        const [error, response] = await catchError(fetch(`https://${window.settings.backendHost}/podcasts?search=${query}`));
         if (!error && (response as Response).ok) {
             const podcasts = await (response as Response).json();
             if (Array.isArray(podcasts) && podcasts.length > 0) {

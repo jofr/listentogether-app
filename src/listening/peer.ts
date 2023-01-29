@@ -61,7 +61,7 @@ export class ListeningPeer extends Events {
         this.state = state;
         this.signalingConnection = new SignalingConnection({
             peerId: this.id,
-            host: config.signalingHost,
+            host: window.settings.backendHost,
             port: config.signalingPort
         });
         this.signalingConnection.on("message", this.signalingMessage);
@@ -71,11 +71,11 @@ export class ListeningPeer extends Events {
         return {
             signalingConnection: this.signalingConnection,
             remoteId: peerId,
-            stunHost: config.stunHost,
+            stunHost: window.settings.backendHost,
             stunPort: config.stunPort,
-            turnHost: config.turnHost,
+            turnHost: window.settings.backendHost,
             turnPort: config.turnPort,
-            turnCredentialsRestApiUrl: config.turnCredentialsRestApiUrl
+            turnCredentialsRestApiUrl: `https://${window.settings.backendHost}${config.turnCredentialsRestApiPath}`
         }
     }
 
