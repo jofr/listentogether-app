@@ -16,10 +16,21 @@ declare global {
         player: AudioPlayer;
         session: ListeningSession;
         backButton: BackButtonStack;
+        setUpInitialHostSession: Function;
+        setUpPotentialListeningSession: Function;
     }
 }
 
 window.settings = new Settings();
+
+// Get viewport size without browser chrome for correct initial sizing
+// TODO: Change this as soon as svh unit is supported widely enough
+const calculateSvh = () => {
+    let svh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--svh', `${svh}px`);
+}
+window.addEventListener("resize", calculateSvh);
+calculateSvh();
 
 class BackButtonStack {
     private callbackStack = [];
@@ -92,19 +103,26 @@ Object.defineProperty(window, "session", {
     }
 });
 
-// Set up app, audio player and initial host listening session
-window.app = document.querySelector("listen-together-app");
-window.player = new AudioElementPlayer();
-window.session = ListeningSession.CreateHost();
-
-// Get viewport size without browser chrome for correct initial sizing
-// TODO: Change this as soon as svh unit is supported widely enough
-const calculateSvh = () => {
-    let svh = window.innerHeight * 0.01;
-    document.documentElement.style.setProperty('--svh', `${svh}px`);
+window.setUpInitialHostSession = () => {
+    window.player = new AudioElementPlayer();
+    window.session = ListeningSession.CreateHost();
 }
-window.addEventListener("resize", calculateSvh);
-calculateSvh();
+
+window.setUpPotentialListeningSession = () => {
+    const potentialSession = ListeningSession.CreateListener(window.location.hash.substring(1));
+    document.querySelector("join-listening-dialog").session = potentialSession;
+    window.app.showDialog("join-listening-dialog");
+}
+
+// Get app reference
+window.app = document.querySelector("listen-together-app");
+
+// Create audio player and initial host session (unless this is the first use of
+// the app in which case this happens after the user has agreed to how data is
+// transferred and handled)
+if (!window.settings.firstUse) {
+    window.setUpInitialHostSession();
+}
 
 document.addEventListener("DOMContentLoaded", () => {
     // On first use get the preferred color scheme and save it as a setting.
@@ -116,10 +134,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // If there is a hash in the URL set up a potential listener and show the
     // dialog to join the listening
-    if (window.location.hash.length > 0) {
-        const potentialSession = ListeningSession.CreateListener(window.location.hash.substring(1));
-        document.querySelector("join-listening-dialog").session = potentialSession;
-        window.app.showDialog("join-listening-dialog");
+    if (window.location.hash.length > 0 && !window.settings.firstUse) {
+        window.setUpPotentialListeningSession();
+    }
+
+    if (window.settings.firstUse) {
+        window.app.showDialog("first-use-dialog");
     }
 });
 
