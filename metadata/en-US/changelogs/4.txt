@@ -1,0 +1,3 @@
+- Backend server is now configurable
+- Added settings page (for dark mode and backend server)
+- Added first use dialog
