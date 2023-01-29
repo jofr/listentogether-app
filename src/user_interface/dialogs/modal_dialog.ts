@@ -68,7 +68,7 @@ export class ModalDialog extends LitElement {
             color: var(--on-surface-variant);
         }
 
-        .content p {
+        .content p, .content ul {
             font-size: 0.875rem;
             font-weight: 400;
             line-height: 1.25rem;

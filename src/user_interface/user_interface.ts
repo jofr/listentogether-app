@@ -16,6 +16,7 @@ import "./dialogs/add_audio_dialog";
 import "./dialogs/join_listening_dialog";
 import "./dialogs/invite_listener_dialog";
 import "./dialogs/share_settings_dialog";
+import "./dialogs/first_use_dialog";
 import "./elements/listener_avatar";
 import "./elements/loading_placeholder";
 import "./pages/now_playing";
