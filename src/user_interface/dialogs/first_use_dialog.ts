@@ -33,6 +33,7 @@ export class FirstUseDialog extends ModalDialog {
             }
 
             a {
+                color: var(--primary);
                 text-decoration: none;
             }
         `
