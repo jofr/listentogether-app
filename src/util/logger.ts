@@ -1,10 +1,15 @@
-const print = (method: string, args: any[]) => {
+const printMessage = (method: string, args: any[]) => {
     console[method](...args);
 }
 
-export const logger = {
-    "debug": (...args: any[]) => print("debug", args),
-    "log": (...args: any[]) => print("log", args),
-    "warn": (...args: any[]) => print("warn", args),
-    "error": (...args: any[]) => print("error", args)
+export let logger = {
+    "debug": (...args: any[]) => printMessage("debug", args),
+    "log": (...args: any[]) => printMessage("log", args),
+    "warn": (...args: any[]) => printMessage("warn", args),
+    "error": (...args: any[]) => printMessage("error", args)
+}
+
+if (process.env.NODE_ENV === "production") {
+    logger.debug = () => {};
+    logger.log = () => {};
 }
