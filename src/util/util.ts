@@ -53,5 +53,10 @@ export function arraysEqual(x: any[], y: any[]) {
 }
 
 export function createInvitationUrl(peerId: PeerId) {
-    return `${window.location.origin}${window.location.pathname}#${peerId}`;
+    if (window.location.hostname === "localhost" && window.location.port !== "1234") {
+        // localhost and not port 1234 means we are inside the Android app
+        return `https://listentogether.gitlab.io/app/#${peerId}`;
+    } else {
+        return `${window.location.origin}${window.location.pathname}#${peerId}`;
+    }
 }
